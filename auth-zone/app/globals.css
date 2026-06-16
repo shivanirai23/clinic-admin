@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-brand-blue: #29abe2;
+  --color-brand-green: #8cc63f;
+  --color-brand-pink: #e5649f;
+  --color-brand-orange: #f7941d;
+
+  /* Brand light accent colors */
+  --color-brandLight-green: #e6f5d5;
+  --color-brandLight-pink: #fae0ec;
+  --color-brandLight-orange: #ffeacc;
+  --color-brandLight-blue: #d4eef9;
+
+  --color-slate-200: #e2e8f0;
+  --color-slate-400: #94a3b8;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-red-50: #fef2f2;
+  --color-red-200: #fecaca;
+  --color-red-600: #dc2626;
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(to right, #e5649f, #f7941d, #8cc63f, #29abe2);
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+body {
+  background: #ffffff;
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
