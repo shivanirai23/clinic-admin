@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from "react";
 import {
+  AlertTriangle,
   BadgeCheck,
   BadgePlus,
   Check,
   ChevronRight,
+  Copy,
   FileDown,
   Filter,
   KeyRound,
-  LockKeyhole,
   MoreVertical,
   Printer,
   QrCode,
@@ -29,7 +30,8 @@ import { PageHeader } from "@/shared/ui/page-header";
 import { StatCard } from "@/shared/ui/stat-card";
 
 function generatePin() {
-  return String(Math.floor(1000 + Math.random() * 9000));
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  return `${pin.slice(0, 3)} ${pin.slice(3)}`;
 }
 
 function getMenuItems(
@@ -60,6 +62,7 @@ export function QrBadgesPage() {
   const [search, setSearch] = useState("");
   const [badges, setBadges] = useState(badgeRegistry);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
   const [regenerateTarget, setRegenerateTarget] = useState<Badge | null>(null);
   const [showIssueSuccess, setShowIssueSuccess] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -67,6 +70,7 @@ export function QrBadgesPage() {
   const [issuedBadgeId, setIssuedBadgeId] = useState("");
   const [newPin, setNewPin] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [pinCopied, setPinCopied] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -78,6 +82,16 @@ export function QrBadgesPage() {
         b.id.toLowerCase().includes(q),
     );
   }, [badges, search]);
+
+  const openMenuBadge = useMemo(
+    () => badges.find((b) => b.id === menuOpenId) ?? null,
+    [badges, menuOpenId],
+  );
+
+  const closeMenu = () => {
+    setMenuOpenId(null);
+    setMenuAnchor(null);
+  };
 
   const stats = useMemo(
     () => ({
@@ -148,6 +162,21 @@ export function QrBadgesPage() {
     );
   };
 
+  const handleCopyPin = async () => {
+    try {
+      await navigator.clipboard.writeText(newPin.replace(/\s/g, ""));
+      setPinCopied(true);
+      setTimeout(() => setPinCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  const closePinModal = () => {
+    setShowPinModal(false);
+    setPinCopied(false);
+  };
+
   return (
     <>
       <PageHeader title="QR & Badges" />
@@ -173,7 +202,7 @@ export function QrBadgesPage() {
           />
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-border bg-white shadow-[0px_1px_8px_0px_rgba(66,158,226,0.5)]">
+        <section className="rounded-xl border border-border bg-white shadow-[0px_1px_8px_0px_rgba(66,158,226,0.5)]">
           <div className="flex flex-col gap-4 border-b border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-display text-lg font-semibold text-text-primary">
@@ -232,28 +261,22 @@ export function QrBadgesPage() {
                     <td className="px-6 py-4 text-sm text-text-secondary">
                       {badge.lastIssued ?? "—"}
                     </td>
-                    <td className="relative px-6 py-4">
+                    <td className="px-6 py-4">
                       <button
                         type="button"
-                        onClick={() =>
-                          setMenuOpenId(menuOpenId === badge.id ? null : badge.id)
-                        }
+                        onClick={(e) => {
+                          if (menuOpenId === badge.id) {
+                            closeMenu();
+                          } else {
+                            setMenuOpenId(badge.id);
+                            setMenuAnchor(e.currentTarget.getBoundingClientRect());
+                          }
+                        }}
                         className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-page"
                         data-menu-trigger
                       >
                         <MoreVertical className="h-4 w-4 text-text-muted" />
                       </button>
-                      <DropdownMenu
-                        open={menuOpenId === badge.id}
-                        onClose={() => setMenuOpenId(null)}
-                        items={getMenuItems(badge, {
-                          onIssueNew: () => handleIssueBadge(badge),
-                          onRegeneratePin: () => setRegenerateTarget(badge),
-                          onPrint: () => handlePrintBadge(badge.clinicianName, badge.id),
-                          onExportPdf: () => handleExportPdf(badge.clinicianName, badge.id),
-                          onDeactivate: () => handleDeactivate(badge),
-                        })}
-                      />
                     </td>
                   </tr>
                 ))}
@@ -261,6 +284,22 @@ export function QrBadgesPage() {
             </table>
           </div>
         </section>
+
+        {openMenuBadge && (
+          <DropdownMenu
+            open={!!menuOpenId}
+            onClose={closeMenu}
+            anchorRect={menuAnchor}
+            items={getMenuItems(openMenuBadge, {
+              onIssueNew: () => handleIssueBadge(openMenuBadge),
+              onRegeneratePin: () => setRegenerateTarget(openMenuBadge),
+              onPrint: () => handlePrintBadge(openMenuBadge.clinicianName, openMenuBadge.id),
+              onExportPdf: () =>
+                handleExportPdf(openMenuBadge.clinicianName, openMenuBadge.id),
+              onDeactivate: () => handleDeactivate(openMenuBadge),
+            })}
+          />
+        )}
       </main>
 
       {/* Regenerate PIN confirmation — image 2 */}
@@ -368,53 +407,67 @@ export function QrBadgesPage() {
       {/* New PIN generated */}
       <Modal
         open={showPinModal}
-        onClose={() => setShowPinModal(false)}
+        onClose={closePinModal}
         bare
-        className="max-w-lg"
+        showClose={false}
+        className="max-w-lg overflow-hidden"
       >
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <div className="flex items-center gap-3">
-            <LockKeyhole className="h-5 w-5 text-[#429ee2]" />
-            <h2 className="font-display text-base font-bold text-text-primary">
-              PIN Generated Successfully
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowPinModal(false)}
-            className="text-text-muted hover:text-text-primary"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="px-6 py-8 text-center">
+        <div className="px-6 pb-6 pt-8 text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#76d231]">
             <Check className="h-8 w-8 text-white" strokeWidth={3} />
           </div>
           <h3 className="font-display text-xl font-bold text-text-primary">
-            New PIN Generated!
+            New PIN Generated Successfully
           </h3>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-text-secondary">
-            A new access PIN has been created for{" "}
-            <strong>{issuedBadgeName}</strong>. Share it securely — it will not be
-            shown again.
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-text-secondary">
+            The security credentials for{" "}
+            <strong>{issuedBadgeName}</strong> have been updated and are ready for
+            use.
           </p>
 
-          <div className="mx-auto mt-6 max-w-xs rounded-xl border border-[#429ee2]/30 bg-[#eff7fd] px-6 py-6">
-            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
-              Clinician Access PIN
-            </p>
-            <p className="mt-3 font-display text-5xl font-bold tracking-[0.35em] text-text-primary">
+          <div className="relative mt-6 rounded-xl border border-[#b8dff5] bg-[#eff7fd] px-5 py-5">
+            <p className="text-center font-display text-4xl font-bold tracking-[0.2em] text-text-primary">
               {newPin}
             </p>
+            <button
+              type="button"
+              onClick={handleCopyPin}
+              className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-text-primary"
+              aria-label={pinCopied ? "PIN copied" : "Copy PIN"}
+              title={pinCopied ? "Copied!" : "Copy PIN"}
+            >
+              {pinCopied ? (
+                <Check className="h-5 w-5 text-[#76d231]" strokeWidth={3} />
+              ) : (
+                <Copy className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-[#f5b8c8] bg-[#fce7f3] px-4 py-4 text-left">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#e5649f]" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#e5649f]">
+                  Critical Security Notice
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-[#e5649f]">
+                  For security, this PIN will only be shown once. Please ensure the
+                  clinician records it immediately in a secure manager. It will be
+                  hidden as soon as you close this window.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-border bg-[#f9f9f9] px-6 py-4">
-          <Button size="sm" onClick={() => setShowPinModal(false)} className="gap-1">
+        <div className="border-t border-border bg-[#f9f9f9] px-6 py-4">
+          <Button
+            size="lg"
+            onClick={closePinModal}
+            className="h-12 w-full rounded-xl bg-[#76d231] text-white hover:bg-[#68bd2b] border-[#76d231]"
+          >
             Done
-            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </Modal>

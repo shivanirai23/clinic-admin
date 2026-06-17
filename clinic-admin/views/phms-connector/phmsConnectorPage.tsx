@@ -13,20 +13,20 @@ export function PhmsConnectorPage() {
   const [username, setUsername] = useState("siri@gmail.com");
   const [password, setPassword] = useState("password123");
   const [showPassword, setShowPassword] = useState(false);
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleTest = async () => {
     setTesting(true);
     await new Promise((r) => setTimeout(r, 1200));
-    setConnected(true);
     setTesting(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 800));
+    setConnected(true);
     setSaving(false);
   };
 
@@ -45,7 +45,10 @@ export function PhmsConnectorPage() {
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setPhmsType(type)}
+                    onClick={() => {
+                      setPhmsType(type);
+                      setConnected(false);
+                    }}
                     className={cn(
                       "flex items-center gap-3 rounded-lg border px-5 py-4 text-left transition-colors",
                       selected
@@ -82,7 +85,10 @@ export function PhmsConnectorPage() {
                 </label>
                 <Input
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setConnected(false);
+                  }}
                   placeholder="siri@gmail.com"
                   className="bg-white"
                 />
@@ -93,7 +99,10 @@ export function PhmsConnectorPage() {
                   <Input
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setConnected(false);
+                    }}
                     className="bg-white pr-10"
                   />
                   <button

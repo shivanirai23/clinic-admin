@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -77,9 +78,10 @@ interface DropdownMenuProps {
   open: boolean;
   onClose: () => void;
   items: { label: string; onClick: () => void; destructive?: boolean }[];
+  anchorRect: DOMRect | null;
 }
 
-export function DropdownMenu({ open, onClose, items }: DropdownMenuProps) {
+export function DropdownMenu({ open, onClose, items, anchorRect }: DropdownMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,16 +92,26 @@ export function DropdownMenu({ open, onClose, items }: DropdownMenuProps) {
       if (target.closest("[data-menu-trigger]")) return;
       onClose();
     };
+    const handleScroll = () => onClose();
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !anchorRect || typeof document === "undefined") return null;
 
-  return (
+  const menuWidth = 180;
+  const left = Math.max(8, anchorRect.right - menuWidth);
+  const top = anchorRect.bottom + 4;
+
+  return createPortal(
     <div
       ref={menuRef}
-      className="absolute right-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-border bg-white py-1 shadow-lg"
+      style={{ position: "fixed", top, left, width: menuWidth, zIndex: 50 }}
+      className="rounded-lg border border-border bg-white py-1 shadow-lg"
     >
       {items.map((item) => (
         <button
@@ -117,6 +129,7 @@ export function DropdownMenu({ open, onClose, items }: DropdownMenuProps) {
           {item.label}
         </button>
       ))}
-    </div>
+    </div>,
+    document.body,
   );
 }
