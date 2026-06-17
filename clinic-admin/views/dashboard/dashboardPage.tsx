@@ -1,35 +1,101 @@
 "use client";
 
-import { Navbar } from "@/shared/ui/navbar";
+import Link from "next/link";
+import { dashboardMetrics, pendingWrites, todayVisits } from "@/lib/mock-data";
+import { Button } from "@/shared/ui/button";
+import { MetricCard } from "@/shared/ui/metric-card";
+import { PageHeader, SectionHeader, VisitRow } from "@/shared/ui/page-header";
+import { PhmsBadge } from "@/shared/ui/badge";
 
 export function DashboardPage() {
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">Dashboard</h1>
-          <p className="mt-2 text-slate-500">
-            Welcome to HIKIGAI Clinic Admin. Build clinic management features in this zone.
-          </p>
-        </div>
+  const previewVisits = todayVisits.slice(0, 4);
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { title: "Clinics", description: "Manage clinic locations and settings" },
-            { title: "Staff", description: "Invite and manage clinic staff" },
-            { title: "Reports", description: "View operational reports and analytics" },
-          ].map((card) => (
-            <div
-              key={card.title}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <h2 className="text-lg font-semibold text-slate-800">{card.title}</h2>
-              <p className="mt-2 text-sm text-slate-500">{card.description}</p>
+  return (
+    <>
+      <PageHeader title="Dashboard" />
+      <main className="space-y-8 px-8 py-6">
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard compact label="Visits today" value={dashboardMetrics.visitsToday} />
+          <MetricCard
+            compact
+            label="Success rate"
+            value={`${dashboardMetrics.successRate}%`}
+            subtitle="Visits completed successfully"
+          />
+          <MetricCard
+            compact
+            label="Pending writes"
+            value={dashboardMetrics.pendingWrites}
+            subtitle="Failed PHMS write-backs"
+          />
+          <Link href="/qr-badges" className="block transition-opacity hover:opacity-95">
+            <MetricCard
+              compact
+              label="QR alerts"
+              value={dashboardMetrics.qrAlerts}
+              subtitle="Badge reported lost"
+            />
+          </Link>
+        </section>
+
+        <section className="grid grid-cols-1 gap-10 xl:grid-cols-2">
+          <div className="space-y-4">
+            <SectionHeader
+              title="Today's visits"
+              action={
+                <Link href="/visits">
+                  <Button variant="outline" size="sm">
+                    View all
+                  </Button>
+                </Link>
+              }
+            />
+            <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+              {previewVisits.map((visit) => (
+                <VisitRow
+                  key={visit.id}
+                  petName={visit.petName}
+                  veterinarian={visit.veterinarian}
+                  reason={visit.reason}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+
+          <div className="space-y-4">
+            <SectionHeader
+              title="Pending write retry"
+              action={
+                <Link href="/write-retry-queue">
+                  <Button variant="outline" size="sm">
+                    Manage
+                  </Button>
+                </Link>
+              }
+            />
+            <div className="space-y-3">
+              {pendingWrites.map((write) => (
+                <div
+                  key={write.id}
+                  className="flex items-center justify-between rounded-xl border border-border bg-white px-5 py-4 shadow-sm"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">{write.petName}</p>
+                    <div className="mt-1.5">
+                      <PhmsBadge label={write.phms} />
+                    </div>
+                  </div>
+                  <Link href="/write-retry-queue">
+                    <Button variant="outline" size="sm">
+                      Retry Now
+                    </Button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
-    </div>
+    </>
   );
 }

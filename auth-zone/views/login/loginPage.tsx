@@ -5,10 +5,18 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { getCurrentUser } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
+import { AUTH_BYPASS, isDevAuthenticated } from "@/lib/auth/session";
 import { LoginForm } from "@/views/login/loginForm";
 
 export function LoginPage() {
   useEffect(() => {
+    if (AUTH_BYPASS) {
+      if (isDevAuthenticated()) {
+        window.location.replace("/");
+      }
+      return;
+    }
+
     // "/" is owned by the main zone (a different app), so leaving the auth
     // zone must be a full-page navigation — the client router can't cross zones.
     getCurrentUser()

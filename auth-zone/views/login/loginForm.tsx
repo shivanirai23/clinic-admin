@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { LockIcon, MailIcon, AlertCircle, EyeOffIcon, EyeIcon } from "lucide-react";
 import { signIn, resetPassword, confirmSignIn, signInWithRedirect } from "aws-amplify/auth";
+import { AUTH_BYPASS, setDevSession } from "@/lib/auth/session";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
@@ -80,6 +81,12 @@ export function LoginForm() {
 
     setIsLoggingIn(true);
     try {
+      if (AUTH_BYPASS) {
+        setDevSession(email);
+        window.location.replace("/");
+        return;
+      }
+
       const { nextStep } = await signIn({ username: email, password });
       if (nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
         setNewPasswordRequired(true);
@@ -112,6 +119,11 @@ export function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setAuthError("");
+    if (AUTH_BYPASS) {
+      setDevSession("google-user@dev.local");
+      window.location.replace("/");
+      return;
+    }
     try {
       await signInWithRedirect({ provider: "Google" });
     } catch (err: unknown) {

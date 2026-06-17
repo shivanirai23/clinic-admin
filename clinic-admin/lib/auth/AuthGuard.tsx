@@ -2,14 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { getCurrentUser } from "aws-amplify/auth";
+import { AUTH_BYPASS, isDevAuthenticated } from "@/lib/auth/session";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    if (AUTH_BYPASS) {
+      if (isDevAuthenticated()) {
+        setChecking(false);
+      } else {
+        window.location.replace("/login");
+      }
+      return;
+    }
+
     getCurrentUser()
       .then(() => setChecking(false))
-      // /login lives in the auth-zone app — needs a full-page navigation
       .catch(() => window.location.replace("/login"));
   }, []);
 
