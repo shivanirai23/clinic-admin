@@ -79,9 +79,18 @@ interface DropdownMenuProps {
   onClose: () => void;
   items: { label: string; onClick: () => void; destructive?: boolean }[];
   anchorRect: DOMRect | null;
+  placement?: "top" | "bottom";
+  matchWidth?: boolean;
 }
 
-export function DropdownMenu({ open, onClose, items, anchorRect }: DropdownMenuProps) {
+export function DropdownMenu({
+  open,
+  onClose,
+  items,
+  anchorRect,
+  placement = "bottom",
+  matchWidth = false,
+}: DropdownMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,14 +112,24 @@ export function DropdownMenu({ open, onClose, items, anchorRect }: DropdownMenuP
 
   if (!open || !anchorRect || typeof document === "undefined") return null;
 
-  const menuWidth = 180;
-  const left = Math.max(8, anchorRect.right - menuWidth);
-  const top = anchorRect.bottom + 4;
+  const menuWidth = matchWidth ? anchorRect.width : 180;
+  const left = matchWidth
+    ? anchorRect.left
+    : Math.max(8, anchorRect.right - menuWidth);
+  const top =
+    placement === "top" ? anchorRect.top - 4 : anchorRect.bottom + 4;
 
   return createPortal(
     <div
       ref={menuRef}
-      style={{ position: "fixed", top, left, width: menuWidth, zIndex: 50 }}
+      style={{
+        position: "fixed",
+        top,
+        left,
+        width: menuWidth,
+        zIndex: 50,
+        transform: placement === "top" ? "translateY(-100%)" : undefined,
+      }}
       className="rounded-lg border border-border bg-white py-1 shadow-lg"
     >
       {items.map((item) => (
