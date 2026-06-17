@@ -59,7 +59,7 @@ export function WriteRetryQueuePage() {
   return (
     <>
       <PageHeader
-        title="Write Retry Queue"
+        title="Pending PHMS Syncs"
         action={
           <Button
             size="sm"

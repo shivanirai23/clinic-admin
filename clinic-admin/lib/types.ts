@@ -31,6 +31,13 @@ export interface Badge {
   lastIssued: string | null;
 }
 
+export interface ClinicianCandidate {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   timestamp: string;

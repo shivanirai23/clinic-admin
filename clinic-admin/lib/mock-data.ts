@@ -1,4 +1,4 @@
-import type { AuditLogEntry, Badge, DashboardMetrics, PendingWrite, Visit } from "./types";
+import type { AuditLogEntry, Badge, ClinicianCandidate, DashboardMetrics, PendingWrite, Visit } from "./types";
 
 export const dashboardMetrics: DashboardMetrics = {
   visitsToday: 12,
@@ -149,7 +149,7 @@ export const badgeRegistry: Badge[] = [
     id: "badge-2",
     clinicianName: "Marcus Bennett",
     email: "m.bennett@clinic.com",
-    role: "Technician",
+    role: "Veterinarian",
     status: "DEACTIVATED",
     lastIssued: "Sep 05, 2023",
   },
@@ -157,7 +157,7 @@ export const badgeRegistry: Badge[] = [
     id: "badge-3",
     clinicianName: "Sarah Lopez",
     email: "s.lopez@clinic.com",
-    role: "Front Desk Admin",
+    role: "Veterinary Surgeon",
     status: "LOST",
     lastIssued: "Jan 18, 2024",
   },
@@ -168,6 +168,33 @@ export const badgeRegistry: Badge[] = [
     role: "Veterinary Surgeon",
     status: "NO_BADGE",
     lastIssued: null,
+  },
+];
+
+export const clinicianCandidates: ClinicianCandidate[] = [
+  {
+    id: "cand-1",
+    name: "Dr. Alex Rivera",
+    role: "Senior Veterinarian",
+    email: "alex.rivera@clinic.com",
+  },
+  {
+    id: "cand-2",
+    name: "Dr. Sarah Chen",
+    role: "Veterinary Surgeon",
+    email: "sarah.chen@clinic.com",
+  },
+  {
+    id: "cand-3",
+    name: "Jamie Lance",
+    role: "Veterinarian",
+    email: "jamie.lance@clinic.com",
+  },
+  {
+    id: "badge-4",
+    name: "Dr. Alex Miller",
+    role: "Veterinary Surgeon",
+    email: "a.miller@clinic.com",
   },
 ];
 
