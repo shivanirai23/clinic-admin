@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from "react";
 import {
-  AlertTriangle,
   BadgeCheck,
   BadgePlus,
   Check,
   ChevronRight,
-  Copy,
   FileDown,
   Filter,
   Info,
@@ -15,7 +13,6 @@ import {
   MoreVertical,
   Printer,
   QrCode,
-  RefreshCw,
   Search,
   ShieldOff,
   X,
@@ -61,16 +58,10 @@ function badgeToCandidate(badge: Badge): ClinicianCandidate {
   };
 }
 
-function generatePin() {
-  const pin = String(Math.floor(100000 + Math.random() * 900000));
-  return `${pin.slice(0, 3)} ${pin.slice(3)}`;
-}
-
 function getMenuItems(
   badge: Badge,
   handlers: {
     onIssueNew: () => void;
-    onRegeneratePin: () => void;
     onPrint: () => void;
     onExportPdf: () => void;
     onDeactivate: () => void;
@@ -80,14 +71,10 @@ function getMenuItems(
     return [
       { label: "Print badge", onClick: handlers.onPrint },
       { label: "Export PDF", onClick: handlers.onExportPdf },
-      { label: "Regenerate PIN", onClick: handlers.onRegeneratePin },
       { label: "Deactivate", onClick: handlers.onDeactivate, destructive: true },
     ];
   }
-  return [
-    { label: "Issue new badge", onClick: handlers.onIssueNew },
-    { label: "Regenerate PIN", onClick: handlers.onRegeneratePin },
-  ];
+  return [{ label: "Issue new badge", onClick: handlers.onIssueNew }];
 }
 
 export function QrBadgesPage() {
@@ -95,16 +82,12 @@ export function QrBadgesPage() {
   const [badges, setBadges] = useState(badgeRegistry);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
-  const [regenerateTarget, setRegenerateTarget] = useState<Badge | null>(null);
   const [issueStep, setIssueStep] = useState<1 | 2 | 3 | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<ClinicianCandidate | null>(null);
   const [issueSearch, setIssueSearch] = useState("");
-  const [showPinModal, setShowPinModal] = useState(false);
   const [issuedBadgeName, setIssuedBadgeName] = useState("");
   const [issuedBadgeId, setIssuedBadgeId] = useState("");
-  const [newPin, setNewPin] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [pinCopied, setPinCopied] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -202,7 +185,6 @@ export function QrBadgesPage() {
       setIssuedBadgeId(newBadge.id);
     }
 
-    setNewPin(generatePin());
     setIssueStep(3);
   };
 
@@ -227,15 +209,6 @@ export function QrBadgesPage() {
     }
   };
 
-  const handleRegenerateConfirm = () => {
-    if (regenerateTarget) {
-      setIssuedBadgeName(regenerateTarget.clinicianName);
-    }
-    setNewPin(generatePin());
-    setRegenerateTarget(null);
-    setShowPinModal(true);
-  };
-
   const handleDeactivate = (badge: Badge) => {
     setBadges((prev) =>
       prev.map((b) =>
@@ -244,26 +217,11 @@ export function QrBadgesPage() {
     );
   };
 
-  const handleCopyPin = async () => {
-    try {
-      await navigator.clipboard.writeText(newPin.replace(/\s/g, ""));
-      setPinCopied(true);
-      setTimeout(() => setPinCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable */
-    }
-  };
-
-  const closePinModal = () => {
-    setShowPinModal(false);
-    setPinCopied(false);
-  };
-
   return (
     <>
       <PageHeader title="QR & Badges" />
       <main className="space-y-6 px-8 py-6">
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <StatCard
             label="Active Badges"
             value={stats.active}
@@ -276,12 +234,12 @@ export function QrBadgesPage() {
             icon={<ShieldOff className="h-6 w-6 text-[#ff9800]" />}
             iconBg="bg-[rgba(255,152,0,0.2)]"
           />
-          <StatCard
+          {/* <StatCard
             label="PIN Resets (24h)"
             value={stats.pinResets}
             icon={<KeyRound className="h-6 w-6 text-[#429ee2]" />}
             iconBg="bg-[rgba(41,171,226,0.2)]"
-          />
+          /> */}
         </section>
 
         <section className="rounded-xl border border-border bg-white shadow-[0px_1px_8px_0px_rgba(66,158,226,0.5)]">
@@ -374,7 +332,6 @@ export function QrBadgesPage() {
             anchorRect={menuAnchor}
             items={getMenuItems(openMenuBadge, {
               onIssueNew: () => handleIssueBadge(openMenuBadge),
-              onRegeneratePin: () => setRegenerateTarget(openMenuBadge),
               onPrint: () => handlePrintBadge(openMenuBadge.clinicianName, openMenuBadge.id),
               onExportPdf: () =>
                 handleExportPdf(openMenuBadge.clinicianName, openMenuBadge.id),
@@ -628,109 +585,6 @@ export function QrBadgesPage() {
               <span className="mt-1 text-xs text-text-muted">Download for digital storage</span>
             </button>
           </div>
-        </div>
-      </Modal>
-
-      {/* Regenerate PIN confirmation — image 2 */}
-      <Modal
-        open={!!regenerateTarget}
-        onClose={() => setRegenerateTarget(null)}
-        bare
-        className="max-w-xl"
-      >
-        <div className="px-6 py-5">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#429ee2]">
-              <RefreshCw className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h2 className="font-display text-lg font-bold text-text-primary">
-                Regenerate Clinician PIN?
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                This will immediately invalidate the current PIN and generate a new one
-                for <strong>{regenerateTarget?.clinicianName}</strong>. The clinician
-                will need to use the new PIN for identity fallback.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 border-t border-border bg-[#f9f9f9] px-6 py-4">
-          <Button variant="outline" size="sm" onClick={() => setRegenerateTarget(null)}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleRegenerateConfirm} className="gap-1">
-            Generate New PIN
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </Modal>
-
-      {/* New PIN generated */}
-      <Modal
-        open={showPinModal}
-        onClose={closePinModal}
-        bare
-        showClose={false}
-        className="max-w-lg overflow-hidden"
-      >
-        <div className="px-6 pb-6 pt-8 text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#76d231]">
-            <Check className="h-8 w-8 text-white" strokeWidth={3} />
-          </div>
-          <h3 className="font-display text-xl font-bold text-text-primary">
-            New PIN Generated Successfully
-          </h3>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-text-secondary">
-            The security credentials for{" "}
-            <strong>{issuedBadgeName}</strong> have been updated and are ready for
-            use.
-          </p>
-
-          <div className="relative mt-6 rounded-xl border border-[#b8dff5] bg-[#eff7fd] px-5 py-5">
-            <p className="text-center font-display text-4xl font-bold tracking-[0.2em] text-text-primary">
-              {newPin}
-            </p>
-            <button
-              type="button"
-              onClick={handleCopyPin}
-              className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-text-primary"
-              aria-label={pinCopied ? "PIN copied" : "Copy PIN"}
-              title={pinCopied ? "Copied!" : "Copy PIN"}
-            >
-              {pinCopied ? (
-                <Check className="h-5 w-5 text-[#76d231]" strokeWidth={3} />
-              ) : (
-                <Copy className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-
-          <div className="mt-4 rounded-xl border border-[#f5b8c8] bg-[#fce7f3] px-4 py-4 text-left">
-            <div className="flex gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#e5649f]" />
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-[#e5649f]">
-                  Critical Security Notice
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-[#e5649f]">
-                  For security, this PIN will only be shown once. Please ensure the
-                  clinician records it immediately in a secure manager. It will be
-                  hidden as soon as you close this window.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-border bg-[#f9f9f9] px-6 py-4">
-          <Button
-            size="lg"
-            onClick={closePinModal}
-            className="h-12 w-full rounded-xl bg-[#76d231] text-white hover:bg-[#68bd2b] border-[#76d231]"
-          >
-            Done
-          </Button>
         </div>
       </Modal>
     </>

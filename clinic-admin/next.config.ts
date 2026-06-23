@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { loadEnvConfig } from "@next/env";
+import path from "path";
+
+// Load Hikigai (and other) env vars from the monorepo root .env
+loadEnvConfig(path.join(__dirname, ".."));
 
 // Multi-Zones (micro-frontends): /login + /signup are served by the auth-zone
 // app. This app acts as the router for the whole domain and proxies those paths

@@ -1,41 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { dashboardMetrics, pendingWrites, todayVisits } from "@/lib/mock-data";
+import { Loader2 } from "lucide-react";
+import { dashboardMetrics, pendingWrites } from "@/lib/mock-data";
+import { useAppointments } from "@/lib/hooks/use-appointments";
 import { Button } from "@/shared/ui/button";
 import { MetricCard } from "@/shared/ui/metric-card";
 import { PageHeader, SectionHeader, VisitRow } from "@/shared/ui/page-header";
 import { PhmsBadge } from "@/shared/ui/badge";
 
 export function DashboardPage() {
-  const previewVisits = todayVisits.slice(0, 4);
+  const { visits, loading, error } = useAppointments();
+  const previewVisits = visits.slice(0, 4);
+  const visitsToday = loading ? "—" : visits.length;
 
   return (
     <>
       <PageHeader title="Dashboard" />
       <main className="space-y-8 px-8 py-6">
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard compact label="Visits today" value={dashboardMetrics.visitsToday} />
+          <MetricCard compact label="Visits today" value={visitsToday} />
           <MetricCard
             compact
             label="Success rate"
             value={`${dashboardMetrics.successRate}%`}
             subtitle="Visits completed successfully"
           />
-          <MetricCard
+          {/* <MetricCard
             compact
             label="Pending writes"
             value={dashboardMetrics.pendingWrites}
             subtitle="Failed PHMS write-backs"
-          />
-          <Link href="/qr-badges" className="block transition-opacity hover:opacity-95">
+          /> */}
+          {/* <Link href="/qr-badges" className="block transition-opacity hover:opacity-95">
             <MetricCard
               compact
               label="QR alerts"
               value={dashboardMetrics.qrAlerts}
               subtitle="Badge reported lost"
             />
-          </Link>
+          </Link> */}
         </section>
 
         <section className="grid grid-cols-1 gap-10 xl:grid-cols-2">
@@ -51,18 +55,31 @@ export function DashboardPage() {
               }
             />
             <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-              {previewVisits.map((visit) => (
-                <VisitRow
-                  key={visit.id}
-                  petName={visit.petName}
-                  veterinarian={visit.veterinarian}
-                  reason={visit.reason}
-                />
-              ))}
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-text-muted">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading appointments...
+                </div>
+              ) : error ? (
+                <div className="px-5 py-10 text-center text-sm text-danger">{error}</div>
+              ) : previewVisits.length === 0 ? (
+                <div className="px-5 py-10 text-center text-sm text-text-muted">
+                  No appointments scheduled for today.
+                </div>
+              ) : (
+                previewVisits.map((visit) => (
+                  <VisitRow
+                    key={visit.id}
+                    petName={visit.petName}
+                    veterinarian={visit.veterinarian}
+                    reason={visit.reason}
+                  />
+                ))
+              )}
             </div>
           </div>
 
-          <div className="space-y-4">
+          {/* <div className="space-y-4">
             <SectionHeader
               title="Pending write retry"
               action={
@@ -93,7 +110,7 @@ export function DashboardPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </section>
       </main>
     </>
