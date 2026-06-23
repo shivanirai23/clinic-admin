@@ -41,7 +41,7 @@ Set these in each zone (or in the platform Environment tab per app):
 | `HIKIGAI_PROJECT_ID` | clinic-admin | Hikigai project ID (`X-Project-ID` on agent invoke) |
 | `HIKIGAI_PLATFORM_URL` | clinic-admin | Platform URL for auth exchange (default `https://hikigaiplatform.io`) |
 | `HIKIGAI_API_BASE_URL` | clinic-admin | API host for agent invoke (default `https://backend.hikigaiplatform.io`) |
-| `HIKIGAI_SITE_ID` | clinic-admin | IDEXX site ID for appointment agent (default `1`) |
+| `HIKIGAI_APP_ID` | clinic-admin | Platform app ID for Identity API (QR badge issuance) |
 
 ## Reference
 

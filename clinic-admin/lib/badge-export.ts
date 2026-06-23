@@ -1,11 +1,12 @@
-import QRCode from "qrcode";
 import { jsPDF } from "jspdf";
 
-function badgePayload(clinicianName: string, badgeId?: string) {
-  return badgeId ?? `clinic-admin:badge:${clinicianName}`;
+function qrDataUrl(pngBase64: string) {
+  return pngBase64.startsWith("data:image")
+    ? pngBase64
+    : `data:image/png;base64,${pngBase64}`;
 }
 
-function printHtml(qrDataUrl: string) {
+function printHtml(qrImageDataUrl: string) {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -27,7 +28,7 @@ function printHtml(qrDataUrl: string) {
   </style>
 </head>
 <body>
-  <img src="${qrDataUrl}" alt="QR code" />
+  <img src="${qrImageDataUrl}" alt="QR code" />
   <script>
     window.onload = function () {
       window.focus();
@@ -39,28 +40,21 @@ function printHtml(qrDataUrl: string) {
 </html>`;
 }
 
-export async function printBadge(clinicianName: string, badgeId?: string) {
-  const qrDataUrl = await QRCode.toDataURL(badgePayload(clinicianName, badgeId), {
-    width: 480,
-    margin: 2,
-    color: { dark: "#1c1b1b", light: "#ffffff" },
-  });
-
+export async function printBadgeFromQrPng(pngBase64: string) {
+  const qrImageDataUrl = qrDataUrl(pngBase64);
   const printWindow = window.open("", "_blank", "width=360,height=360");
   if (!printWindow) return;
 
   printWindow.document.open();
-  printWindow.document.write(printHtml(qrDataUrl));
+  printWindow.document.write(printHtml(qrImageDataUrl));
   printWindow.document.close();
 }
 
-export async function downloadBadgePdf(clinicianName: string, badgeId?: string) {
-  const qrDataUrl = await QRCode.toDataURL(badgePayload(clinicianName, badgeId), {
-    width: 512,
-    margin: 2,
-    color: { dark: "#1c1b1b", light: "#ffffff" },
-  });
-
+export async function downloadBadgePdfFromQrPng(
+  pngBase64: string,
+  clinicianName: string,
+) {
+  const qrImageDataUrl = qrDataUrl(pngBase64);
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a6" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -68,7 +62,7 @@ export async function downloadBadgePdf(clinicianName: string, badgeId?: string) 
   const qrX = (pageWidth - qrSize) / 2;
   const qrY = (pageHeight - qrSize) / 2;
 
-  doc.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+  doc.addImage(qrImageDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
   const filename = `${clinicianName.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_qr.pdf`;
   doc.save(filename);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useIdentityUsers } from "@/lib/hooks/use-identity-users";
 import {
   BadgeCheck,
   BadgePlus,
@@ -10,6 +11,7 @@ import {
   Filter,
   Info,
   KeyRound,
+  Loader2,
   MoreVertical,
   Printer,
   QrCode,
@@ -17,8 +19,8 @@ import {
   ShieldOff,
   X,
 } from "lucide-react";
-import { badgeRegistry, clinicianCandidates } from "@/lib/mock-data";
-import { downloadBadgePdf, printBadge } from "@/lib/badge-export";
+import { downloadBadgePdfFromQrPng, printBadgeFromQrPng } from "@/lib/badge-export";
+import type { IdentityUserWithBadge, IssueQrBadgeResponse } from "@/lib/hikigai/identity";
 import type { Badge, ClinicianCandidate } from "@/lib/types";
 import { Button } from "@/shared/ui/button";
 import { StatusBadge } from "@/shared/ui/badge";
@@ -49,6 +51,15 @@ function avatarColorFor(id: string) {
   return avatarColors[index % avatarColors.length];
 }
 
+function identityUserToCandidate(user: IdentityUserWithBadge): ClinicianCandidate {
+  return {
+    id: user.id,
+    name: user.displayName,
+    role: user.role,
+    email: user.email,
+  };
+}
+
 function badgeToCandidate(badge: Badge): ClinicianCandidate {
   return {
     id: badge.id,
@@ -56,6 +67,33 @@ function badgeToCandidate(badge: Badge): ClinicianCandidate {
     role: badge.role,
     email: badge.email,
   };
+}
+
+function userToBadge(user: IdentityUserWithBadge): Badge {
+  return {
+    id: user.id,
+    clinicianName: user.displayName,
+    email: user.email,
+    role: user.role,
+    status: user.badgeStatus,
+    lastIssued: user.lastIssued,
+    qrCredentialId: user.qrCredentialId,
+  };
+}
+
+async function requestQrBadge(email: string): Promise<IssueQrBadgeResponse> {
+  const response = await fetch("/api/identity/qr-badge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = (await response.json()) as IssueQrBadgeResponse & { error?: string };
+  if (!response.ok) {
+    throw new Error(data.error ?? "Failed to issue QR badge");
+  }
+
+  return data;
 }
 
 function getMenuItems(
@@ -78,8 +116,11 @@ function getMenuItems(
 }
 
 export function QrBadgesPage() {
+  const { users, loading: usersLoading, error: usersError, reload: reloadUsers } =
+    useIdentityUsers();
   const [search, setSearch] = useState("");
-  const [badges, setBadges] = useState(badgeRegistry);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
   const [issueStep, setIssueStep] = useState<1 | 2 | 3 | null>(null);
@@ -87,7 +128,12 @@ export function QrBadgesPage() {
   const [issueSearch, setIssueSearch] = useState("");
   const [issuedBadgeName, setIssuedBadgeName] = useState("");
   const [issuedBadgeId, setIssuedBadgeId] = useState("");
+  const [issuedQrPngBase64, setIssuedQrPngBase64] = useState<string | null>(null);
+  const [issuing, setIssuing] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  const badges = useMemo(() => users.map(userToBadge), [users]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -125,22 +171,26 @@ export function QrBadgesPage() {
     const activeEmails = new Set(
       badges.filter((b) => b.status === "ACTIVE").map((b) => b.email.toLowerCase()),
     );
-    return clinicianCandidates.filter(
-      (c) => !activeEmails.has(c.email.toLowerCase()),
-    );
-  }, [badges]);
+    return users
+      .filter((user) => !activeEmails.has(user.email.toLowerCase()))
+      .map(identityUserToCandidate);
+  }, [users, badges]);
 
   const filteredEligible = useMemo(() => {
     const q = issueSearch.trim().toLowerCase();
     if (!q) return eligibleClinicians;
     return eligibleClinicians.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q),
+        c.name.toLowerCase().includes(q) ||
+        c.role.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q),
     );
   }, [eligibleClinicians, issueSearch]);
 
   const openIssueFlow = (candidate?: ClinicianCandidate) => {
     setIssueSearch("");
+    setIssueError(null);
+    setIssuedQrPngBase64(null);
     if (candidate) {
       setSelectedCandidate(candidate);
       setIssueStep(2);
@@ -154,38 +204,30 @@ export function QrBadgesPage() {
     setIssueStep(null);
     setSelectedCandidate(null);
     setIssueSearch("");
+    setIssueError(null);
+    setIssuedQrPngBase64(null);
+    setIssuing(false);
   };
 
-  const completeIssue = (candidate: ClinicianCandidate) => {
-    const existing = badges.find(
-      (b) => b.id === candidate.id || b.email === candidate.email,
-    );
+  const completeIssue = async (candidate: ClinicianCandidate) => {
+    setIssuing(true);
+    setIssueError(null);
 
-    if (existing) {
-      setBadges((prev) =>
-        prev.map((b) =>
-          b.id === existing.id
-            ? { ...b, status: "ACTIVE" as const, lastIssued: "Jun 16, 2026" }
-            : b,
-        ),
+    try {
+      const qrBadge = await requestQrBadge(candidate.email);
+
+      setIssuedBadgeName(candidate.name);
+      setIssuedBadgeId(candidate.id);
+      setIssuedQrPngBase64(qrBadge.qr_code_png_base64);
+      setIssueStep(3);
+      await reloadUsers();
+    } catch (error) {
+      setIssueError(
+        error instanceof Error ? error.message : "Failed to issue QR badge",
       );
-      setIssuedBadgeName(existing.clinicianName);
-      setIssuedBadgeId(existing.id);
-    } else {
-      const newBadge: Badge = {
-        id: `badge-${Date.now()}`,
-        clinicianName: candidate.name,
-        email: candidate.email,
-        role: candidate.role,
-        status: "ACTIVE",
-        lastIssued: "Jun 16, 2026",
-      };
-      setBadges((prev) => [newBadge, ...prev]);
-      setIssuedBadgeName(newBadge.clinicianName);
-      setIssuedBadgeId(newBadge.id);
+    } finally {
+      setIssuing(false);
     }
-
-    setIssueStep(3);
   };
 
   const handleIssueBadge = (target?: Badge) => {
@@ -196,32 +238,67 @@ export function QrBadgesPage() {
     openIssueFlow();
   };
 
-  const handlePrintBadge = async (name: string, id?: string) => {
-    await printBadge(name, id);
+  const resolveQrPng = async (email: string, cached?: string | null) => {
+    if (cached) return cached;
+    const badge = await requestQrBadge(email);
+    return badge.qr_code_png_base64;
   };
 
-  const handleExportPdf = async (name: string, id?: string) => {
+  const handlePrintBadge = async (name: string, email: string, cached?: string | null) => {
+    const pngBase64 = await resolveQrPng(email, cached);
+    await printBadgeFromQrPng(pngBase64);
+  };
+
+  const handleExportPdf = async (name: string, email: string, cached?: string | null) => {
     setExporting(true);
     try {
-      await downloadBadgePdf(name, id);
+      const pngBase64 = await resolveQrPng(email, cached);
+      await downloadBadgePdfFromQrPng(pngBase64, name);
     } finally {
       setExporting(false);
     }
   };
 
-  const handleDeactivate = (badge: Badge) => {
-    setBadges((prev) =>
-      prev.map((b) =>
-        b.id === badge.id ? { ...b, status: "DEACTIVATED" as const } : b,
-      ),
-    );
+  const handleDeactivate = async (badge: Badge) => {
+    if (!badge.qrCredentialId) {
+      setActionError("No active QR credential to revoke for this clinician.");
+      return;
+    }
+
+    setDeactivatingId(badge.id);
+    setActionError(null);
+    closeMenu();
+
+    try {
+      const response = await fetch("/api/identity/credentials", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: badge.id,
+          credentialId: badge.qrCredentialId,
+        }),
+      });
+
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to deactivate badge");
+      }
+
+      await reloadUsers();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Failed to deactivate badge",
+      );
+    } finally {
+      setDeactivatingId(null);
+    }
   };
 
   return (
     <>
       <PageHeader title="QR & Badges" />
       <main className="space-y-6 px-8 py-6">
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <StatCard
             label="Active Badges"
             value={stats.active}
@@ -234,22 +311,22 @@ export function QrBadgesPage() {
             icon={<ShieldOff className="h-6 w-6 text-[#ff9800]" />}
             iconBg="bg-[rgba(255,152,0,0.2)]"
           />
-          {/* <StatCard
+          <StatCard
             label="PIN Resets (24h)"
             value={stats.pinResets}
             icon={<KeyRound className="h-6 w-6 text-[#429ee2]" />}
             iconBg="bg-[rgba(41,171,226,0.2)]"
-          /> */}
+          />
         </section>
 
         <section className="rounded-xl border border-border bg-white shadow-[0px_1px_8px_0px_rgba(66,158,226,0.5)]">
           <div className="flex flex-col gap-4 border-b border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-display text-lg font-semibold text-text-primary">
-                Badge Registry
+                Clinicians
               </h2>
               <p className="text-sm text-text-secondary">
-                Manage clinician badges and access credentials
+                Doctors from your Hikigai Identity pool — issue and manage QR badges
               </p>
             </div>
             <Button size="lg" onClick={() => openIssueFlow()} className="gap-2">
@@ -274,6 +351,24 @@ export function QrBadgesPage() {
             </Button>
           </div>
 
+          {usersError && (
+            <div className="mx-6 mb-4 flex flex-col gap-3 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-danger">{usersError}</p>
+              <Button variant="ghost" size="sm" onClick={() => void reloadUsers()}>
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {actionError && (
+            <div className="mx-6 mb-4 flex flex-col gap-3 rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-danger">{actionError}</p>
+              <Button variant="ghost" size="sm" onClick={() => setActionError(null)}>
+                Dismiss
+              </Button>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
@@ -286,40 +381,62 @@ export function QrBadgesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((badge) => (
-                  <tr key={badge.id} className="border-b border-border last:border-b-0">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-text-primary">
-                        {badge.clinicianName}
-                      </p>
-                      <p className="text-xs text-text-secondary">{badge.email}</p>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-text-primary">{badge.role}</td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={badge.status} />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-text-secondary">
-                      {badge.lastIssued ?? "—"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          if (menuOpenId === badge.id) {
-                            closeMenu();
-                          } else {
-                            setMenuOpenId(badge.id);
-                            setMenuAnchor(e.currentTarget.getBoundingClientRect());
-                          }
-                        }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-page"
-                        data-menu-trigger
-                      >
-                        <MoreVertical className="h-4 w-4 text-text-muted" />
-                      </button>
+                {usersLoading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-text-muted">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                      <p className="mt-2 text-sm">Loading clinicians from Identity…</p>
                     </td>
                   </tr>
-                ))}
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-text-muted">
+                      {users.length === 0
+                        ? "No clinicians found in your Identity pool."
+                        : "No clinicians match your search."}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((badge) => (
+                    <tr key={badge.id} className="border-b border-border last:border-b-0">
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold text-text-primary">
+                          {badge.clinicianName}
+                        </p>
+                        <p className="text-xs text-text-secondary">{badge.email}</p>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-text-primary">{badge.role}</td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={badge.status} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-text-secondary">
+                        {badge.lastIssued ?? "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          disabled={deactivatingId === badge.id}
+                          onClick={(e) => {
+                            if (menuOpenId === badge.id) {
+                              closeMenu();
+                            } else {
+                              setMenuOpenId(badge.id);
+                              setMenuAnchor(e.currentTarget.getBoundingClientRect());
+                            }
+                          }}
+                          className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-page disabled:opacity-50"
+                          data-menu-trigger
+                        >
+                          {deactivatingId === badge.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-text-muted" />
+                          ) : (
+                            <MoreVertical className="h-4 w-4 text-text-muted" />
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -332,10 +449,17 @@ export function QrBadgesPage() {
             anchorRect={menuAnchor}
             items={getMenuItems(openMenuBadge, {
               onIssueNew: () => handleIssueBadge(openMenuBadge),
-              onPrint: () => handlePrintBadge(openMenuBadge.clinicianName, openMenuBadge.id),
+              onPrint: () =>
+                void handlePrintBadge(
+                  openMenuBadge.clinicianName,
+                  openMenuBadge.email,
+                ),
               onExportPdf: () =>
-                handleExportPdf(openMenuBadge.clinicianName, openMenuBadge.id),
-              onDeactivate: () => handleDeactivate(openMenuBadge),
+                void handleExportPdf(
+                  openMenuBadge.clinicianName,
+                  openMenuBadge.email,
+                ),
+              onDeactivate: () => void handleDeactivate(openMenuBadge),
             })}
           />
         )}
@@ -390,7 +514,12 @@ export function QrBadgesPage() {
               </div>
 
               <div className="mt-4 max-h-72 space-y-3 overflow-y-auto">
-                {filteredEligible.length === 0 ? (
+                {usersLoading ? (
+                  <div className="flex flex-col items-center rounded-lg border border-border px-4 py-8 text-text-muted">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <p className="mt-2 text-sm">Loading clinicians…</p>
+                  </div>
+                ) : filteredEligible.length === 0 ? (
                   <p className="rounded-lg border border-border px-4 py-6 text-center text-sm text-text-muted">
                     No clinicians without an active badge match your search.
                   </p>
@@ -422,6 +551,7 @@ export function QrBadgesPage() {
                             {clinician.name}
                           </p>
                           <p className="text-xs text-text-muted">{clinician.role}</p>
+                          <p className="truncate text-xs text-text-secondary">{clinician.email}</p>
                         </div>
                         <span
                           className={cn(
@@ -489,15 +619,21 @@ export function QrBadgesPage() {
               <span className="mt-2 inline-block rounded-full border border-border bg-page px-3 py-1 text-xs text-text-secondary">
                 {selectedCandidate.role}
               </span>
+              <p className="mt-2 text-sm text-text-muted">{selectedCandidate.email}</p>
 
               <div className="mt-6 flex gap-3 rounded-xl border border-border bg-page px-4 py-4 text-left">
                 <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand-blue" />
                 <p className="text-sm leading-relaxed text-text-secondary">
-                  Please confirm this is the correct clinician for badge issuance. The
-                  digital badge will be generated using the information and photo shown
-                  above.
+                  Confirming will call the Hikigai Identity API to issue a QR login
+                  badge for this clinician. The QR payload is shown once.
                 </p>
               </div>
+
+              {issueError && (
+                <p className="mt-4 rounded-lg border border-danger/30 bg-danger-bg px-4 py-3 text-sm text-danger">
+                  {issueError}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-border bg-[#f9f9f9] px-6 py-4">
@@ -505,16 +641,27 @@ export function QrBadgesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIssueStep(1)}
+                disabled={issuing}
               >
                 Back
               </Button>
               <Button
                 size="sm"
-                onClick={() => completeIssue(selectedCandidate)}
+                onClick={() => void completeIssue(selectedCandidate)}
+                disabled={issuing}
                 className="gap-1"
               >
-                Confirm &amp; Continue
-                <ChevronRight className="h-4 w-4" />
+                {issuing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Issuing...
+                  </>
+                ) : (
+                  <>
+                    Confirm &amp; Continue
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             </div>
           </>
@@ -556,12 +703,26 @@ export function QrBadgesPage() {
             distribution.
           </p>
 
+          {issuedQrPngBase64 && (
+            <div className="mx-auto mt-6 flex h-40 w-40 items-center justify-center rounded-xl border border-border bg-white p-3">
+              <img
+                src={`data:image/png;base64,${issuedQrPngBase64}`}
+                alt={`QR badge for ${issuedBadgeName}`}
+                className="h-full w-full object-contain"
+              />
+            </div>
+          )}
+
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => {
+                const email =
+                  badges.find((b) => b.id === issuedBadgeId)?.email ??
+                  selectedCandidate?.email;
+                if (!email) return;
                 closeIssueFlow();
-                handlePrintBadge(issuedBadgeName, issuedBadgeId);
+                void handlePrintBadge(issuedBadgeName, email, issuedQrPngBase64);
               }}
               className="flex flex-col items-center rounded-xl border border-border bg-white px-6 py-6 text-left transition-colors hover:border-brand-blue/40 hover:bg-page"
             >
@@ -573,8 +734,12 @@ export function QrBadgesPage() {
               type="button"
               disabled={exporting}
               onClick={() => {
+                const email =
+                  badges.find((b) => b.id === issuedBadgeId)?.email ??
+                  selectedCandidate?.email;
+                if (!email) return;
                 closeIssueFlow();
-                handleExportPdf(issuedBadgeName, issuedBadgeId);
+                void handleExportPdf(issuedBadgeName, email, issuedQrPngBase64);
               }}
               className="flex flex-col items-center rounded-xl border border-border bg-white px-6 py-6 text-left transition-colors hover:border-brand-blue/40 hover:bg-page disabled:opacity-50"
             >

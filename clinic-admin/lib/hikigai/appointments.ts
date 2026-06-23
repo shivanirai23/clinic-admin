@@ -1,10 +1,12 @@
 import type { Visit } from "@/lib/types";
+import { buildIdexxMcpConnector } from "./connectors";
 import { invokeAgent } from "./client";
 import { getHikigaiConfig } from "./config";
+import { HikigaiApiError } from "./errors";
 import type { ClinicalDecisionSupportInput, ClinicalDecisionSupportOutput } from "./types";
 
-/** Agent slug for IDEXX appointments — defined at the call site for this integration. */
-const APPOINTMENTS_AGENT_SLUG = "clinic-agent";
+/** IDEXX site ID for appointment lookups. */
+const IDEXX_SITE_ID = 1;
 
 interface IdexxAppointment {
   pimsId?: string;
@@ -118,18 +120,27 @@ export function mapIdexxAppointmentsToVisits(appointments: IdexxAppointment[]): 
 }
 
 export async function fetchClinicAppointments(date?: string): Promise<Visit[]> {
-  const { siteId } = getHikigaiConfig();
-  const input: ClinicalDecisionSupportInput = { site_id: siteId };
+  const { appointmentsAgentSlug } = getHikigaiConfig();
+  const input: ClinicalDecisionSupportInput = { site_id: IDEXX_SITE_ID };
   if (date) input.date = date;
 
   const response = await invokeAgent<
     ClinicalDecisionSupportInput,
     string | ClinicalDecisionSupportOutput
-  >(APPOINTMENTS_AGENT_SLUG, input, { timeout: 300 });
+  >(appointmentsAgentSlug, input, {
+    timeout: 300,
+    connectors: buildIdexxMcpConnector(),
+  });
 
   const output = parseAgentOutput(response.content);
   if (!output?.appointments_for_today) {
-    return [];
+    const preview =
+      typeof response.content === "string"
+        ? response.content.slice(0, 200)
+        : JSON.stringify(response.content)?.slice(0, 200);
+    throw new HikigaiApiError(
+      `${appointmentsAgentSlug} agent returned no appointments_for_today${preview ? `: ${preview}` : ""}`,
+    );
   }
 
   const payload = parseJsonString<IdexxAppointmentsPayload>(output.appointments_for_today);

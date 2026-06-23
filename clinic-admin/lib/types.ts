@@ -29,6 +29,7 @@ export interface Badge {
   role: string;
   status: BadgeStatus;
   lastIssued: string | null;
+  qrCredentialId?: string | null;
 }
 
 export interface ClinicianCandidate {

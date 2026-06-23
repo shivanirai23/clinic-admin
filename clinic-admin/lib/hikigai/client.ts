@@ -73,11 +73,12 @@ export async function invokeAgent<TInput extends Record<string, unknown>, TConte
     }
 
     if (!response.ok) {
-      throw new HikigaiApiError(
-        extractErrorMessage(payload, response.status),
-        response.status,
-        payload,
-      );
+      const message = extractErrorMessage(payload, response.status);
+      const hint =
+        response.status === 404 && message.toLowerCase().includes("agent not found")
+          ? ` Agent "${agentSlug}" is not deployed in project ${config.projectId}. Set HIKIGAI_APPOINTMENTS_AGENT_SLUG to a deployed slug (e.g. clinic-agent).`
+          : "";
+      throw new HikigaiApiError(`${message}${hint}`, response.status, payload);
     }
 
     return payload as HikigaiInvokeResponse<TContent>;

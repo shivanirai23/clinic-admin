@@ -8,7 +8,20 @@ loadEnvConfig(path.join(__dirname, ".."));
 // Multi-Zones (micro-frontends): /login + /signup are served by the auth-zone
 // app. This app acts as the router for the whole domain and proxies those paths
 // (plus the zone's static assets) to the owning zone.
-const AUTH_ZONE_URL = process.env.AUTH_ZONE_URL ?? "http://localhost:3002";
+const DEPLOYED_AUTH_ZONE_URL = "https://auth-zone-6d1073e3.apps.hikigaiplatform.io";
+
+function resolveAuthZoneUrl(): string {
+  const fromEnv = process.env.AUTH_ZONE_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3002";
+  }
+
+  return DEPLOYED_AUTH_ZONE_URL;
+}
+
+const AUTH_ZONE_URL = resolveAuthZoneUrl();
 
 const config: NextConfig = {
   output: "standalone",

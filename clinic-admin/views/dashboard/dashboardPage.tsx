@@ -18,7 +18,7 @@ export function DashboardPage() {
     <>
       <PageHeader title="Dashboard" />
       <main className="space-y-8 px-8 py-6">
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <MetricCard compact label="Visits today" value={visitsToday} />
           <MetricCard
             compact
@@ -42,7 +42,7 @@ export function DashboardPage() {
           </Link> */}
         </section>
 
-        <section className="grid grid-cols-1 gap-10 xl:grid-cols-2">
+        <section className="grid grid-cols-1 gap-10">
           <div className="space-y-4">
             <SectionHeader
               title="Today's visits"
