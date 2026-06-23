@@ -8,6 +8,15 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   output: "standalone",
   assetPrefix: "/auth-static",
+  async redirects() {
+    return [
+      {
+        source: "/signup",
+        destination: "/login",
+        permanent: false,
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       {

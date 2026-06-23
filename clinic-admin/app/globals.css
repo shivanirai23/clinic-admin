@@ -28,6 +28,16 @@
   --color-danger-bg: #fce7f3;
   --color-info: #429ee2;
   --color-info-bg: rgba(41, 171, 226, 0.2);
+  --color-brand-pink: #e5649f;
+  --color-slate-200: #e2e8f0;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(to right, #e5649f, #ff9800, #81c92f, #429ee2);
 }
 
 body {

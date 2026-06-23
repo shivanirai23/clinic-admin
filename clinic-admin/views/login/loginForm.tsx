@@ -56,7 +56,7 @@ export function LoginForm() {
     setAuthError("");
     try {
       await confirmSignIn({ challengeResponse: newPassword });
-      redirectToMainApp(); // "/" lives in the main zone — hard navigation required
+      redirectToMainApp();
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : "Failed to set new password.");
     } finally {
