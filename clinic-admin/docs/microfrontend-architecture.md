@@ -94,11 +94,19 @@ The repo is a monorepo; each app deploys as its own platform app pointing at the
 
 | Platform app | Root Directory | Port | Env vars to set |
 |---|---|---|---|
-| main (public URL) | `clinic-admin` | 3000 | `AUTH_ZONE_URL` |
-| auth zone | `auth-zone` | 3002 | — |
+| main (public URL) | `clinic-admin` | 3000 | `AUTH_ZONE_URL` = `https://auth-zone-6d1073e3.apps.hikigaiplatform.io` (no trailing slash) |
+| auth zone | `auth-zone` | 3000 | Cognito vars; uses `PORT` if the platform sets it |
 
-Build command `npm run build`, start command `npm start` for both. The port must
-match each app's `npm start` script (auth-zone listens on 3002).
+Build command `npm run build`, start command `npm start` for both. On the Hikigai
+platform both apps listen on **port 3000** (`auth-zone` uses `PORT` when set).
+
+**Important:** The auth-zone public URL root (`/`) only redirects to `/login`.
+Users should use the **clinic-admin** URL for the app; `/login` on clinic-admin
+is proxied to auth-zone via middleware + rewrites.
+
+`clinic-admin` middleware reads `AUTH_ZONE_URL` at **server runtime** (not only
+at build time), so set it in the platform Environment tab before starting the
+main app.
 
 First rollout order:
 

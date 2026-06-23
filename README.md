@@ -36,7 +36,7 @@ Set these in each zone (or in the platform Environment tab per app):
 | `NEXT_PUBLIC_COGNITO_USER_POOL_ID` | all | Cognito user pool ID |
 | `NEXT_PUBLIC_COGNITO_CLIENT_ID` | all | Cognito app client ID |
 | `NEXT_PUBLIC_COGNITO_DOMAIN` | all | Cognito Hosted UI domain (no `https://`) |
-| `AUTH_ZONE_URL` | main only | Live URL of the auth-zone deployment |
+| `AUTH_ZONE_URL` | clinic-admin | Live URL of auth-zone (e.g. `https://auth-zone-6d1073e3.apps.hikigaiplatform.io`) |
 | `HIKIGAI_API_KEY` | clinic-admin | Hikigai platform API key (`X-API-Key` for auth exchange) |
 | `HIKIGAI_PROJECT_ID` | clinic-admin | Hikigai project ID (`X-Project-ID` on agent invoke) |
 | `HIKIGAI_PLATFORM_URL` | clinic-admin | Platform URL for auth exchange (default `https://hikigaiplatform.io`) |

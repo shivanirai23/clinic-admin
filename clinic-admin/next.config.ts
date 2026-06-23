@@ -25,21 +25,26 @@ const AUTH_ZONE_URL = resolveAuthZoneUrl();
 
 const config: NextConfig = {
   output: "standalone",
+  // Middleware proxies auth-zone at runtime (reads AUTH_ZONE_URL when the server
+  // starts). These rewrites are a fallback for environments where middleware
+  // does not run.
   async rewrites() {
-    return [
-      {
-        source: "/login",
-        destination: `${AUTH_ZONE_URL}/login`,
-      },
-      {
-        source: "/signup",
-        destination: `${AUTH_ZONE_URL}/signup`,
-      },
-      {
-        source: "/auth-static/:path+",
-        destination: `${AUTH_ZONE_URL}/auth-static/:path+`,
-      },
-    ];
+    return {
+      beforeFiles: [
+        {
+          source: "/login",
+          destination: `${AUTH_ZONE_URL}/login`,
+        },
+        {
+          source: "/signup",
+          destination: `${AUTH_ZONE_URL}/signup`,
+        },
+        {
+          source: "/auth-static/:path*",
+          destination: `${AUTH_ZONE_URL}/auth-static/:path*`,
+        },
+      ],
+    };
   },
 };
 

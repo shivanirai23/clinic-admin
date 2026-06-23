@@ -298,7 +298,7 @@ export function QrBadgesPage() {
     <>
       <PageHeader title="QR & Badges" />
       <main className="space-y-6 px-8 py-6">
-        <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <StatCard
             label="Active Badges"
             value={stats.active}
@@ -311,12 +311,12 @@ export function QrBadgesPage() {
             icon={<ShieldOff className="h-6 w-6 text-[#ff9800]" />}
             iconBg="bg-[rgba(255,152,0,0.2)]"
           />
-          <StatCard
+          {/* <StatCard
             label="PIN Resets (24h)"
             value={stats.pinResets}
             icon={<KeyRound className="h-6 w-6 text-[#429ee2]" />}
             iconBg="bg-[rgba(41,171,226,0.2)]"
-          />
+          /> */}
         </section>
 
         <section className="rounded-xl border border-border bg-white shadow-[0px_1px_8px_0px_rgba(66,158,226,0.5)]">
