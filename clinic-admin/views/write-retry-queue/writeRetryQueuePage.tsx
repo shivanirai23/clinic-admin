@@ -43,7 +43,7 @@ export function WriteRetryQueuePage() {
 
     setWrites([]);
     setRetryingAll(false);
-    setToast("All pending writes were successfully retried");
+    setToast("All pending visits were sent successfully");
   };
 
   const handleResolve = (id: string) => {
@@ -59,7 +59,7 @@ export function WriteRetryQueuePage() {
   return (
     <>
       <PageHeader
-        title="Pending PHMS Syncs"
+        title="Pending Syncs"
         action={
           <Button
             size="sm"
@@ -78,13 +78,13 @@ export function WriteRetryQueuePage() {
       />
       <main className="px-8 py-6">
         <p className="mb-5 text-sm text-text-muted">
-          Failed PHMS write-backs awaiting retry or manual resolution
+          Visits that couldn't be sent to your practice software — retry or mark as resolved
         </p>
 
         <div className="space-y-3">
           {writes.length === 0 ? (
             <div className="rounded-xl border border-border bg-white px-6 py-10 text-center text-sm text-text-muted">
-              No pending write retries. All visits have been synced.
+              No pending syncs. All visits have been sent to your practice software.
             </div>
           ) : (
             writes.map((write) => (

@@ -32,12 +32,12 @@ export function PhmsConnectorPage() {
 
   return (
     <>
-      <PageHeader title="PHMS Connector" />
+      <PageHeader title="Practice Software" />
       <main className="px-8 py-6">
         <div className="rounded-xl border border-border bg-white shadow-sm">
           {/* PHMS type */}
           <section className="border-b border-border px-6 py-5">
-            <h2 className="mb-4 text-sm font-bold text-text-primary">PHMS type</h2>
+            <h2 className="mb-4 text-sm font-bold text-text-primary">Software type</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {(["cornerstone", "neo"] as const).map((type) => {
                 const selected = phmsType === type;
@@ -77,7 +77,7 @@ export function PhmsConnectorPage() {
 
           {/* Credentials */}
           <section className="border-b border-border px-6 py-5">
-            <h2 className="mb-4 text-sm font-bold text-text-primary">Credentials</h2>
+            <h2 className="mb-4 text-sm font-bold text-text-primary">Login details</h2>
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm text-text-secondary">

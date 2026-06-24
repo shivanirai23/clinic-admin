@@ -60,7 +60,7 @@ export function TodaysVisitsPage() {
           {loading ? (
             <div className="flex items-center justify-center gap-2 px-5 py-16 text-sm text-text-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading appointments from IDEXX...
+              Loading today's appointments...
             </div>
           ) : error ? (
             <div className="px-5 py-16 text-center text-sm text-danger">{error}</div>

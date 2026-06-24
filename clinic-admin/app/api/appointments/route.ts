@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { fetchClinicAppointments } from "@/lib/hikigai/appointments";
-import { HikigaiApiError } from "@/lib/hikigai/client";
 import { isHikigaiConfigured } from "@/lib/hikigai/config";
+import { formatUserFacingError } from "@/lib/user-facing-errors";
 
 export async function GET(request: Request) {
   if (!isHikigaiConfigured()) {
     return NextResponse.json(
-      { error: "Hikigai API is not configured on the server" },
+      { error: "Appointment sync isn't set up yet. Please contact your clinic administrator." },
       { status: 503 },
     );
   }
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json(
-      { error: "date must be in YYYY-MM-DD format" },
+      { error: "Please use a date in YYYY-MM-DD format." },
       { status: 400 },
     );
   }
@@ -25,12 +25,7 @@ export async function GET(request: Request) {
     const visits = await fetchClinicAppointments(date);
     return NextResponse.json({ visits, source: "hikigai" });
   } catch (error) {
-    const message =
-      error instanceof HikigaiApiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Failed to fetch appointments";
+    const message = formatUserFacingError(error, "appointments");
 
     return NextResponse.json({ error: message }, { status: 502 });
   }

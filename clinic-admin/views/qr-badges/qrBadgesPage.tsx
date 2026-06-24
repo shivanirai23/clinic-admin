@@ -29,6 +29,7 @@ import { DropdownMenu, Modal } from "@/shared/ui/modal";
 import { PageHeader } from "@/shared/ui/page-header";
 import { StatCard } from "@/shared/ui/stat-card";
 import { cn } from "@/lib/utils";
+import { formatUserFacingError, sanitizeApiErrorMessage } from "@/lib/user-facing-errors";
 
 function getInitials(name: string) {
   const parts = name.replace(/^Dr\.\s*/i, "").split(/\s+/).filter(Boolean);
@@ -90,7 +91,9 @@ async function requestQrBadge(email: string): Promise<IssueQrBadgeResponse> {
 
   const data = (await response.json()) as IssueQrBadgeResponse & { error?: string };
   if (!response.ok) {
-    throw new Error(data.error ?? "Failed to issue QR badge");
+    throw new Error(
+      sanitizeApiErrorMessage(data.error ?? "", "badges", "We couldn't issue the badge. Please try again."),
+    );
   }
 
   return data;
@@ -222,9 +225,7 @@ export function QrBadgesPage() {
       setIssueStep(3);
       await reloadUsers();
     } catch (error) {
-      setIssueError(
-        error instanceof Error ? error.message : "Failed to issue QR badge",
-      );
+      setIssueError(formatUserFacingError(error, "badges"));
     } finally {
       setIssuing(false);
     }
@@ -261,7 +262,7 @@ export function QrBadgesPage() {
 
   const handleDeactivate = async (badge: Badge) => {
     if (!badge.qrCredentialId) {
-      setActionError("No active QR credential to revoke for this clinician.");
+      setActionError("This clinician doesn't have an active badge to deactivate.");
       return;
     }
 
@@ -281,14 +282,18 @@ export function QrBadgesPage() {
 
       const data = (await response.json()) as { error?: string };
       if (!response.ok) {
-        throw new Error(data.error ?? "Failed to deactivate badge");
+        throw new Error(
+          sanitizeApiErrorMessage(
+            data.error ?? "",
+            "badges",
+            "We couldn't deactivate this badge. Please try again.",
+          ),
+        );
       }
 
       await reloadUsers();
     } catch (error) {
-      setActionError(
-        error instanceof Error ? error.message : "Failed to deactivate badge",
-      );
+      setActionError(formatUserFacingError(error, "badges"));
     } finally {
       setDeactivatingId(null);
     }
@@ -326,7 +331,7 @@ export function QrBadgesPage() {
                 Clinicians
               </h2>
               <p className="text-sm text-text-secondary">
-                Doctors from your Hikigai Identity pool — issue and manage QR badges
+                Issue and manage secure QR login badges for your clinic staff
               </p>
             </div>
             <Button size="lg" onClick={() => openIssueFlow()} className="gap-2">
@@ -385,14 +390,14 @@ export function QrBadgesPage() {
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-text-muted">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                      <p className="mt-2 text-sm">Loading clinicians from Identity…</p>
+                      <p className="mt-2 text-sm">Loading clinicians…</p>
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-sm text-text-muted">
                       {users.length === 0
-                        ? "No clinicians found in your Identity pool."
+                        ? "No clinicians are set up yet. Contact your administrator to add staff."
                         : "No clinicians match your search."}
                     </td>
                   </tr>
@@ -589,7 +594,7 @@ export function QrBadgesPage() {
             <div className="flex items-start justify-between border-b border-border px-6 py-4">
               <div>
                 <h2 className="font-display text-base font-bold text-text-primary">
-                  Verify Identity
+                  Confirm Clinician
                 </h2>
                 <p className="text-xs text-text-muted">Step 2 of 3</p>
               </div>
@@ -624,8 +629,8 @@ export function QrBadgesPage() {
               <div className="mt-6 flex gap-3 rounded-xl border border-border bg-page px-4 py-4 text-left">
                 <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand-blue" />
                 <p className="text-sm leading-relaxed text-text-secondary">
-                  Confirming will call the Hikigai Identity API to issue a QR login
-                  badge for this clinician. The QR payload is shown once.
+                  A new QR login badge will be created for this clinician. Save or
+                  print it right away — it is only shown once.
                 </p>
               </div>
 

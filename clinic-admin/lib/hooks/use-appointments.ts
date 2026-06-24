@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatUserFacingError, sanitizeApiErrorMessage } from "@/lib/user-facing-errors";
 import type { Visit } from "@/lib/types";
 
 interface AppointmentsResponse {
@@ -24,13 +25,19 @@ export function useAppointments(date?: string) {
       const data = (await response.json()) as AppointmentsResponse;
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Failed to load appointments");
+        throw new Error(
+          sanitizeApiErrorMessage(
+            data.error ?? "",
+            "appointments",
+            "We couldn't load today's appointments. Please try again.",
+          ),
+        );
       }
 
       setVisits(data.visits ?? []);
     } catch (err) {
       setVisits([]);
-      setError(err instanceof Error ? err.message : "Failed to load appointments");
+      setError(formatUserFacingError(err, "appointments"));
     } finally {
       setLoading(false);
     }

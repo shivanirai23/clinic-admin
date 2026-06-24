@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { HikigaiApiError } from "@/lib/hikigai/errors";
 import { getHikigaiConfig, isHikigaiConfigured } from "@/lib/hikigai/config";
 import { issueQrBadge } from "@/lib/hikigai/identity";
+import { formatUserFacingError } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
   if (!isHikigaiConfigured()) {
     return NextResponse.json(
-      { error: "Hikigai API is not configured on the server" },
+      {
+        error:
+          "Badge management isn't set up yet. Please contact your clinic administrator.",
+      },
       { status: 503 },
     );
   }
@@ -14,7 +18,10 @@ export async function POST(request: Request) {
   const { appId } = getHikigaiConfig();
   if (!appId) {
     return NextResponse.json(
-      { error: "HIKIGAI_APP_ID is not configured on the server" },
+      {
+        error:
+          "Badge management isn't fully set up yet. Please contact your clinic administrator.",
+      },
       { status: 503 },
     );
   }
@@ -24,23 +31,21 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { email?: string };
     email = body.email?.trim() ?? "";
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request. Please try again." }, { status: 400 });
   }
 
   if (!email) {
-    return NextResponse.json({ error: "email is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Please enter the clinician's email address." },
+      { status: 400 },
+    );
   }
 
   try {
     const badge = await issueQrBadge(email);
     return NextResponse.json(badge);
   } catch (error) {
-    const message =
-      error instanceof HikigaiApiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Failed to issue QR badge";
+    const message = formatUserFacingError(error, "badges");
 
     const status = error instanceof HikigaiApiError && error.status ? error.status : 502;
     return NextResponse.json({ error: message }, { status });

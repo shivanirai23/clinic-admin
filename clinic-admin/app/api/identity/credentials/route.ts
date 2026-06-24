@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { HikigaiApiError } from "@/lib/hikigai/errors";
 import { isHikigaiConfigured } from "@/lib/hikigai/config";
 import { revokeEndUserCredential } from "@/lib/hikigai/credentials";
+import { formatUserFacingError } from "@/lib/user-facing-errors";
 
 export async function DELETE(request: Request) {
   if (!isHikigaiConfigured()) {
     return NextResponse.json(
-      { error: "Hikigai API is not configured on the server" },
+      {
+        error:
+          "Badge management isn't set up yet. Please contact your clinic administrator.",
+      },
       { status: 503 },
     );
   }
@@ -19,26 +23,21 @@ export async function DELETE(request: Request) {
     userId = body.userId?.trim() ?? "";
     credentialId = body.credentialId?.trim() ?? "";
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid request. Please try again." }, { status: 400 });
   }
 
   if (!userId || !credentialId) {
     return NextResponse.json(
-      { error: "userId and credentialId are required" },
+      { error: "We couldn't deactivate this badge because required details were missing." },
       { status: 400 },
     );
   }
 
   try {
     await revokeEndUserCredential(userId, credentialId);
-    return NextResponse.json({ success: true, message: "Credential revoked" });
+    return NextResponse.json({ success: true, message: "Badge deactivated" });
   } catch (error) {
-    const message =
-      error instanceof HikigaiApiError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Failed to revoke credential";
+    const message = formatUserFacingError(error, "badges");
 
     const status = error instanceof HikigaiApiError && error.status ? error.status : 502;
     return NextResponse.json({ error: message }, { status });

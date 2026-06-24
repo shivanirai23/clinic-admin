@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatUserFacingError, sanitizeApiErrorMessage } from "@/lib/user-facing-errors";
 import type { IdentityUserWithBadge } from "@/lib/hikigai/identity";
 
 interface IdentityUsersResponse {
@@ -22,13 +23,19 @@ export function useIdentityUsers() {
       const data = (await response.json()) as IdentityUsersResponse;
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Failed to load clinicians");
+        throw new Error(
+          sanitizeApiErrorMessage(
+            data.error ?? "",
+            "clinicians",
+            "We couldn't load clinicians. Please try again.",
+          ),
+        );
       }
 
       setUsers(data.users ?? []);
     } catch (err) {
       setUsers([]);
-      setError(err instanceof Error ? err.message : "Failed to load clinicians");
+      setError(formatUserFacingError(err, "clinicians"));
     } finally {
       setLoading(false);
     }
