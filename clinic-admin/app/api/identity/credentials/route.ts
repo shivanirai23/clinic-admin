@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { HikigaiApiError } from "@/lib/hikigai/errors";
-import { isHikigaiConfigured } from "@/lib/hikigai/config";
+import { isBadgesConfigured } from "@/lib/hikigai/config";
 import { revokeEndUserCredential } from "@/lib/hikigai/credentials";
 import { formatUserFacingError } from "@/lib/user-facing-errors";
 
 export async function DELETE(request: Request) {
-  if (!isHikigaiConfigured()) {
+  if (!isBadgesConfigured()) {
     return NextResponse.json(
       {
         error:

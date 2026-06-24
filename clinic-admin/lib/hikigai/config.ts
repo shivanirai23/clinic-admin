@@ -36,10 +36,10 @@ function resolveAppointmentsAgentSlug(): string {
   );
 }
 
+/** Main platform credentials — appointments, agents, IDEXX connector, etc. */
 export function getHikigaiConfig() {
   const apiKey = process.env.HIKIGAI_API_KEY?.trim();
   const projectId = process.env.HIKIGAI_PROJECT_ID?.trim();
-  const appId = process.env.HIKIGAI_APP_ID?.trim();
 
   if (!apiKey) {
     throw new Error("HIKIGAI_API_KEY is not configured");
@@ -51,7 +51,6 @@ export function getHikigaiConfig() {
   return {
     apiKey,
     projectId,
-    appId: appId ?? "",
     appointmentsAgentSlug: resolveAppointmentsAgentSlug(),
     idexxMcpUrl: resolveIdexxMcpUrl(projectId),
     idexxApiKey: process.env.HIKIGAI_IDEXX_API_KEY?.trim() || apiKey,
@@ -62,12 +61,54 @@ export function getHikigaiConfig() {
   } as const;
 }
 
+export interface BadgesConfig {
+  apiKey: string;
+  projectId: string;
+  appId: string;
+  platformUrl: string;
+  apiBaseUrl: string;
+}
+
+/** QR badge / Identity API credentials — separate project and app from the main platform. */
+export function getBadgesConfig(): BadgesConfig {
+  const apiKey = process.env.HIKIGAI_BADGES_API_KEY?.trim();
+  const projectId = process.env.HIKIGAI_BADGES_PROJECT_ID?.trim();
+  const appId = process.env.HIKIGAI_BADGES_APP_ID?.trim();
+
+  if (!apiKey) {
+    throw new Error("HIKIGAI_BADGES_API_KEY is not configured");
+  }
+  if (!projectId) {
+    throw new Error("HIKIGAI_BADGES_PROJECT_ID is not configured");
+  }
+  if (!appId) {
+    throw new Error("HIKIGAI_BADGES_APP_ID is not configured");
+  }
+
+  return {
+    apiKey,
+    projectId,
+    appId,
+    platformUrl: resolvePlatformUrl(),
+    apiBaseUrl: resolveApiBaseUrl(),
+  };
+}
+
 export function isHikigaiConfigured(): boolean {
   return Boolean(
     process.env.HIKIGAI_API_KEY?.trim() && process.env.HIKIGAI_PROJECT_ID?.trim(),
   );
 }
 
+export function isBadgesConfigured(): boolean {
+  return Boolean(
+    process.env.HIKIGAI_BADGES_API_KEY?.trim() &&
+      process.env.HIKIGAI_BADGES_PROJECT_ID?.trim() &&
+      process.env.HIKIGAI_BADGES_APP_ID?.trim(),
+  );
+}
+
+/** @deprecated Use isBadgesConfigured */
 export function isIdentityConfigured(): boolean {
-  return isHikigaiConfigured() && Boolean(process.env.HIKIGAI_APP_ID?.trim());
+  return isBadgesConfigured();
 }

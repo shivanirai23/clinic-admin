@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
 import { HikigaiApiError } from "@/lib/hikigai/errors";
-import { getHikigaiConfig, isHikigaiConfigured } from "@/lib/hikigai/config";
+import { isBadgesConfigured } from "@/lib/hikigai/config";
 import { issueQrBadge } from "@/lib/hikigai/identity";
 import { formatUserFacingError } from "@/lib/user-facing-errors";
 
 export async function POST(request: Request) {
-  if (!isHikigaiConfigured()) {
+  if (!isBadgesConfigured()) {
     return NextResponse.json(
       {
         error:
           "Badge management isn't set up yet. Please contact your clinic administrator.",
-      },
-      { status: 503 },
-    );
-  }
-
-  const { appId } = getHikigaiConfig();
-  if (!appId) {
-    return NextResponse.json(
-      {
-        error:
-          "Badge management isn't fully set up yet. Please contact your clinic administrator.",
       },
       { status: 503 },
     );

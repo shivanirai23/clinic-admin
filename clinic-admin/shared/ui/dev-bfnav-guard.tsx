@@ -1,21 +1,28 @@
-"use client";
+import Script from "next/script";
+import { DevBfNavHydrationMarker } from "@/shared/ui/dev-bfnav-hydration-marker";
 
-import { useEffect } from "react";
+// Dev-only workaround: the Next.js dev server can stall hydration when a page
+// is restored via the browser's back/forward buttons. Effects never run and
+// the app can sit on a spinner forever. Production builds are not affected.
+//
+// beforeInteractive script arms a one-shot reload on back/forward loads; the
+// hydration marker disarms it as soon as React mounts. A reload's navigation
+// type is "reload", so this cannot loop.
+const DEV_BF_NAV_SCRIPT = `if (performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+  setTimeout(function () { if (!window.__hydrated) location.reload(); }, 3000);
+}`;
 
 export function DevBfNavGuard() {
-  useEffect(() => {
-    (window as unknown as { __hydrated?: boolean }).__hydrated = true;
-  }, []);
-
-  if (process.env.NODE_ENV !== "development") return null;
-
   return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `if (performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
-  setTimeout(function () { if (!window.__hydrated) location.reload(); }, 3000);
-}`,
-      }}
-    />
+    <>
+      {process.env.NODE_ENV === "development" ? (
+        <Script
+          id="dev-bfnav-guard"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: DEV_BF_NAV_SCRIPT }}
+        />
+      ) : null}
+      <DevBfNavHydrationMarker />
+    </>
   );
 }

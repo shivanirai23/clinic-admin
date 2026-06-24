@@ -1,5 +1,5 @@
-import { getAccessToken, clearAccessTokenCache } from "./auth";
-import { getHikigaiConfig } from "./config";
+import { getBadgesAccessToken, clearBadgesAccessTokenCache } from "./auth";
+import { getBadgesConfig } from "./config";
 import { HikigaiApiError } from "./errors";
 
 const SDK_USER_AGENT = "hikigai-sdk/0.0.1";
@@ -29,14 +29,15 @@ export interface IdentityUserWithBadge extends IdentityUser {
   qrCredentialId: string | null;
 }
 
-function buildIdentityHeaders(): Record<string, string> {
-  const { apiKey, projectId } = getHikigaiConfig();
+async function buildAuthenticatedHeaders(): Promise<Record<string, string>> {
+  const { apiKey, projectId } = getBadgesConfig();
+  const accessToken = await getBadgesAccessToken();
 
   return {
     "X-API-Key": apiKey,
     "X-Project-ID": projectId,
     "User-Agent": SDK_USER_AGENT,
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: `Bearer ${accessToken}`,
   };
 }
 
@@ -52,20 +53,27 @@ function extractErrorMessage(payload: unknown, status: number): string {
 
 /** Issue (or re-issue) a QR login badge for an end user. */
 export async function issueQrBadge(email: string): Promise<IssueQrBadgeResponse> {
-  const { apiBaseUrl, appId } = getHikigaiConfig();
-
-  if (!appId) {
-    throw new Error("HIKIGAI_APP_ID is not configured");
-  }
+  const { apiBaseUrl, appId } = getBadgesConfig();
 
   const encodedEmail = encodeURIComponent(email.trim());
   const url = `${apiBaseUrl}/api/v1/identity/apps/${appId}/users/${encodedEmail}/qr-login`;
 
-  const response = await fetch(url, {
+  let headers = await buildAuthenticatedHeaders();
+  let response = await fetch(url, {
     method: "POST",
-    headers: buildIdentityHeaders(),
+    headers,
     cache: "no-store",
   });
+
+  if (response.status === 401 || response.status === 403) {
+    clearBadgesAccessTokenCache();
+    headers = await buildAuthenticatedHeaders();
+    response = await fetch(url, {
+      method: "POST",
+      headers,
+      cache: "no-store",
+    });
+  }
 
   const payload = await response.json().catch(() => null);
 
@@ -146,8 +154,8 @@ function normalizeIdentityUsers(payload: unknown): IdentityUser[] {
 }
 
 async function buildJwtHeaders(): Promise<Record<string, string>> {
-  const { projectId } = getHikigaiConfig();
-  const accessToken = await getAccessToken();
+  const { projectId } = getBadgesConfig();
+  const accessToken = await getBadgesAccessToken();
 
   return {
     Authorization: `Bearer ${accessToken}`,
@@ -157,11 +165,7 @@ async function buildJwtHeaders(): Promise<Record<string, string>> {
 
 /** List end users registered in the Identity pool for this app. */
 export async function listIdentityUsers(): Promise<IdentityUser[]> {
-  const { apiBaseUrl, projectId, appId } = getHikigaiConfig();
-
-  if (!appId) {
-    throw new Error("HIKIGAI_APP_ID is not configured");
-  }
+  const { apiBaseUrl, projectId, appId } = getBadgesConfig();
 
   const url = `${apiBaseUrl}/api/v1/projects/${projectId}/apps/${appId}/identity/users`;
 
@@ -173,7 +177,7 @@ export async function listIdentityUsers(): Promise<IdentityUser[]> {
   });
 
   if (response.status === 401 || response.status === 403) {
-    clearAccessTokenCache();
+    clearBadgesAccessTokenCache();
     headers = await buildJwtHeaders();
     response = await fetch(url, {
       method: "GET",

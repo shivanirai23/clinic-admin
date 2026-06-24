@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { HikigaiApiError } from "@/lib/hikigai/errors";
-import { isIdentityConfigured } from "@/lib/hikigai/config";
+import { isBadgesConfigured } from "@/lib/hikigai/config";
 import { listIdentityUsersWithBadges } from "@/lib/hikigai/identity";
 import { formatUserFacingError } from "@/lib/user-facing-errors";
 
 export async function GET() {
-  if (!isIdentityConfigured()) {
+  if (!isBadgesConfigured()) {
     return NextResponse.json(
       {
         error:

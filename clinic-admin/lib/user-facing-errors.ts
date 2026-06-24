@@ -9,7 +9,7 @@ const DEFAULT_MESSAGES: Record<ErrorContext, string> = {
 
 function looksTechnical(message: string): boolean {
   return (
-    /HIKIGAI_|\/api\/v1\/|Bearer|access_token|mcp-server|cloudfront|auth\/exchange/i.test(
+    /HIKIGAI_|\/api\/v1\/|Bearer|access_token|mcp-server|cloudfront/i.test(
       message,
     ) ||
     /\bhikigai\b/i.test(message) ||
@@ -49,7 +49,8 @@ export function sanitizeApiErrorMessage(
   if (
     lower.includes("not configured") ||
     lower.includes("hikigai_api") ||
-    lower.includes("hikigai_app_id")
+    lower.includes("hikigai_app_id") ||
+    lower.includes("hikigai_badges")
   ) {
     if (context === "appointments") {
       return "Appointment sync isn't set up yet. Please contact your clinic administrator.";

@@ -1,8 +1,19 @@
-export { getHikigaiConfig, isHikigaiConfigured, isIdentityConfigured } from "./config";
+export {
+  getHikigaiConfig,
+  getBadgesConfig,
+  isHikigaiConfigured,
+  isBadgesConfigured,
+  isIdentityConfigured,
+} from "./config";
 export { invokeAgent } from "./client";
 export { buildIdexxMcpConnector, IDEXX_MCP_CONNECTOR_NAME } from "./connectors";
 export { HikigaiApiError } from "./errors";
-export { getAccessToken, clearAccessTokenCache } from "./auth";
+export {
+  getAccessToken,
+  getBadgesAccessToken,
+  clearAccessTokenCache,
+  clearBadgesAccessTokenCache,
+} from "./auth";
 export { issueQrBadge, listIdentityUsers, listIdentityUsersWithBadges } from "./identity";
 export {
   deriveQrBadgeInfo,

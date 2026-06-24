@@ -1,4 +1,5 @@
-import { getHikigaiConfig } from "./config";
+import { getBadgesAccessToken, clearBadgesAccessTokenCache } from "./auth";
+import { getBadgesConfig } from "./config";
 import { HikigaiApiError } from "./errors";
 import type { BadgeStatus } from "@/lib/types";
 
@@ -20,13 +21,15 @@ export interface QrBadgeInfo {
   qrCredentialId: string | null;
 }
 
-function buildSdkHeaders(): Record<string, string> {
-  const { apiKey, projectId } = getHikigaiConfig();
+async function buildSdkHeaders(): Promise<Record<string, string>> {
+  const { apiKey, projectId } = getBadgesConfig();
+  const accessToken = await getBadgesAccessToken();
 
   return {
     "X-API-Key": apiKey,
     "X-Project-ID": projectId,
     "User-Agent": SDK_USER_AGENT,
+    Authorization: `Bearer ${accessToken}`,
   };
 }
 
@@ -125,14 +128,25 @@ export function deriveQrBadgeInfo(credentials: EndUserCredential[]): QrBadgeInfo
 
 /** List all credentials (QR badges, PINs) for an end user. */
 export async function listEndUserCredentials(userId: string): Promise<EndUserCredential[]> {
-  const { apiBaseUrl } = getHikigaiConfig();
+  const { apiBaseUrl } = getBadgesConfig();
   const url = `${apiBaseUrl}/api/v1/end-users/${encodeURIComponent(userId)}/credentials`;
 
-  const response = await fetch(url, {
+  let headers = await buildSdkHeaders();
+  let response = await fetch(url, {
     method: "GET",
-    headers: buildSdkHeaders(),
+    headers,
     cache: "no-store",
   });
+
+  if (response.status === 401 || response.status === 403) {
+    clearBadgesAccessTokenCache();
+    headers = await buildSdkHeaders();
+    response = await fetch(url, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
+  }
 
   const payload = await response.json().catch(() => null);
 
@@ -152,14 +166,25 @@ export async function revokeEndUserCredential(
   userId: string,
   credentialId: string,
 ): Promise<void> {
-  const { apiBaseUrl } = getHikigaiConfig();
+  const { apiBaseUrl } = getBadgesConfig();
   const url = `${apiBaseUrl}/api/v1/end-users/${encodeURIComponent(userId)}/credentials/${encodeURIComponent(credentialId)}`;
 
-  const response = await fetch(url, {
+  let headers = await buildSdkHeaders();
+  let response = await fetch(url, {
     method: "DELETE",
-    headers: buildSdkHeaders(),
+    headers,
     cache: "no-store",
   });
+
+  if (response.status === 401 || response.status === 403) {
+    clearBadgesAccessTokenCache();
+    headers = await buildSdkHeaders();
+    response = await fetch(url, {
+      method: "DELETE",
+      headers,
+      cache: "no-store",
+    });
+  }
 
   const payload = await response.json().catch(() => null);
 
