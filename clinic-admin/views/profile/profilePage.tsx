@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, KeyRound, Pencil, Save } from "lucide-react";
+import { KeyRound, Pencil, Save } from "lucide-react";
 import { getDevSession } from "@/lib/auth/session";
 import {
   defaultUserProfile,
@@ -65,7 +65,6 @@ export function ProfilePage() {
     <>
       <PageHeader
         title="Profile"
-        breadcrumbs={[{ label: "Settings", href: "/profile" }, { label: "Personal Information" }]}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -187,15 +186,11 @@ export function ProfilePage() {
 
                 <div>
                   <FieldLabel required>Birth date</FieldLabel>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={draft.birthDate}
-                      onChange={(e) => updateField("birthDate", e.target.value)}
-                      className="pr-10"
-                    />
-                    <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                  </div>
+                  <Input
+                    type="date"
+                    value={draft.birthDate}
+                    onChange={(e) => updateField("birthDate", e.target.value)}
+                  />
                 </div>
 
                 <div>

@@ -14,14 +14,25 @@ export {
   clearAccessTokenCache,
   clearBadgesAccessTokenCache,
 } from "./auth";
-export { issueQrBadge, listIdentityUsers, listIdentityUsersWithBadges } from "./identity";
+export {
+  issueQrBadge,
+  listIdentityUsers,
+  listIdentityUsersWithBadges,
+  signupIdentityUser,
+} from "./identity";
 export {
   deriveQrBadgeInfo,
   listEndUserCredentials,
   revokeEndUserCredential,
 } from "./credentials";
 export { fetchClinicAppointments, mapIdexxAppointmentsToVisits } from "./appointments";
-export type { IdentityUser, IdentityUserWithBadge, IssueQrBadgeResponse } from "./identity";
+export type {
+  IdentityUser,
+  IdentityUserWithBadge,
+  IssueQrBadgeResponse,
+  SignupIdentityUserRequest,
+  SignupIdentityUserResponse,
+} from "./identity";
 export type { EndUserCredential, QrBadgeInfo } from "./credentials";
 export type {
   ClinicalDecisionSupportInput,

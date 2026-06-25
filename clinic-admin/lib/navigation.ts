@@ -2,5 +2,5 @@ import { LayoutDashboard, QrCode } from "lucide-react";
 
 export const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/qr-badges", label: "QR & Badges", icon: QrCode },
+  { href: "/qr-badges", label: "Clinician Onboarding", icon: QrCode },
 ] as const;

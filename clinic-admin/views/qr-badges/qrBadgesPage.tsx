@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { useIdentityUsers } from "@/lib/hooks/use-identity-users";
 import {
   BadgeCheck,
-  BadgePlus,
   Check,
   ChevronRight,
+  Eye,
+  EyeOff,
   FileDown,
   Filter,
   Info,
@@ -99,6 +100,25 @@ async function requestQrBadge(email: string): Promise<IssueQrBadgeResponse> {
   return data;
 }
 
+async function requestSignup(params: {
+  email: string;
+  password: string;
+  display_name: string;
+}): Promise<void> {
+  const response = await fetch("/api/identity/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  const data = (await response.json()) as { error?: string };
+  if (!response.ok) {
+    throw new Error(
+      sanitizeApiErrorMessage(data.error ?? "", "badges", "We couldn't create this account. Please try again."),
+    );
+  }
+}
+
 function getMenuItems(
   badge: Badge,
   handlers: {
@@ -131,10 +151,18 @@ export function QrBadgesPage() {
   const [issueSearch, setIssueSearch] = useState("");
   const [issuedBadgeName, setIssuedBadgeName] = useState("");
   const [issuedBadgeId, setIssuedBadgeId] = useState("");
+  const [issuedBadgeEmail, setIssuedBadgeEmail] = useState("");
   const [issuedQrPngBase64, setIssuedQrPngBase64] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [issueError, setIssueError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupFullName, setSetupFullName] = useState("");
+  const [setupEmail, setSetupEmail] = useState("");
+  const [setupPassword, setSetupPassword] = useState("");
+  const [showSetupPassword, setShowSetupPassword] = useState(false);
+  const [setupSubmitting, setSetupSubmitting] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   const badges = useMemo(() => users.map(userToBadge), [users]);
 
@@ -209,7 +237,40 @@ export function QrBadgesPage() {
     setIssueSearch("");
     setIssueError(null);
     setIssuedQrPngBase64(null);
+    setIssuedBadgeEmail("");
     setIssuing(false);
+  };
+
+  const openSetupModal = () => {
+    setSetupFullName("");
+    setSetupEmail("");
+    setSetupPassword("");
+    setShowSetupPassword(false);
+    setSetupError(null);
+    setSetupOpen(true);
+  };
+
+  const closeSetupModal = () => {
+    setSetupOpen(false);
+    setSetupFullName("");
+    setSetupEmail("");
+    setSetupPassword("");
+    setShowSetupPassword(false);
+    setSetupError(null);
+    setSetupSubmitting(false);
+  };
+
+  const showBadgeSuccess = (
+    name: string,
+    email: string,
+    userId: string,
+    qrPngBase64: string,
+  ) => {
+    setIssuedBadgeName(name);
+    setIssuedBadgeId(userId);
+    setIssuedBadgeEmail(email);
+    setIssuedQrPngBase64(qrPngBase64);
+    setIssueStep(3);
   };
 
   const completeIssue = async (candidate: ClinicianCandidate) => {
@@ -219,15 +280,47 @@ export function QrBadgesPage() {
     try {
       const qrBadge = await requestQrBadge(candidate.email);
 
-      setIssuedBadgeName(candidate.name);
-      setIssuedBadgeId(candidate.id);
-      setIssuedQrPngBase64(qrBadge.qr_code_png_base64);
-      setIssueStep(3);
+      showBadgeSuccess(candidate.name, candidate.email, candidate.id, qrBadge.qr_code_png_base64);
       await reloadUsers();
     } catch (error) {
       setIssueError(formatUserFacingError(error, "badges"));
     } finally {
       setIssuing(false);
+    }
+  };
+
+  const completeSetupAndIssue = async () => {
+    const fullName = setupFullName.trim();
+    const email = setupEmail.trim();
+    const password = setupPassword;
+
+    if (!fullName) {
+      setSetupError("Please enter the clinician's full name.");
+      return;
+    }
+    if (!email) {
+      setSetupError("Please enter the clinician's email address.");
+      return;
+    }
+    if (!password) {
+      setSetupError("Please enter a password.");
+      return;
+    }
+
+    setSetupSubmitting(true);
+    setSetupError(null);
+
+    try {
+      await requestSignup({ email, password, display_name: fullName });
+      const qrBadge = await requestQrBadge(email);
+
+      closeSetupModal();
+      showBadgeSuccess(fullName, email, qrBadge.end_user_id, qrBadge.qr_code_png_base64);
+      await reloadUsers();
+    } catch (error) {
+      setSetupError(formatUserFacingError(error, "badges"));
+    } finally {
+      setSetupSubmitting(false);
     }
   };
 
@@ -301,7 +394,7 @@ export function QrBadgesPage() {
 
   return (
     <>
-      <PageHeader title="QR & Badges" />
+      <PageHeader title="Clinician Onboarding" />
       <main className="space-y-6 px-8 py-6">
         <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <StatCard
@@ -334,10 +427,21 @@ export function QrBadgesPage() {
                 Issue and manage secure QR login badges for your clinic staff
               </p>
             </div>
-            <Button size="lg" onClick={() => openIssueFlow()} className="gap-2">
-              <BadgePlus className="h-4 w-4" />
-              Issue Badge
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button size="lg" onClick={() => openIssueFlow()} className="gap-2">
+                <QrCode className="h-4 w-4" />
+                Generate QR Code
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={openSetupModal}
+                className="gap-2"
+              >
+                <KeyRound className="h-4 w-4" />
+                Setup User &amp; Password
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 border-b border-border px-6 py-3 sm:flex-row sm:items-center">
@@ -379,7 +483,6 @@ export function QrBadgesPage() {
               <thead>
                 <tr className="border-b border-border text-xs font-semibold tracking-wide text-text-secondary">
                   <th className="px-6 py-4">Clinician Name</th>
-                  <th className="px-6 py-4">Role</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Last Issued</th>
                   <th className="px-6 py-4">Actions</th>
@@ -388,14 +491,14 @@ export function QrBadgesPage() {
               <tbody>
                 {usersLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-text-muted">
+                    <td colSpan={4} className="px-6 py-12 text-center text-text-muted">
                       <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                       <p className="mt-2 text-sm">Loading clinicians…</p>
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-text-muted">
+                    <td colSpan={4} className="px-6 py-12 text-center text-sm text-text-muted">
                       {users.length === 0
                         ? "No clinicians are set up yet. Contact your administrator to add staff."
                         : "No clinicians match your search."}
@@ -410,7 +513,6 @@ export function QrBadgesPage() {
                         </p>
                         <p className="text-xs text-text-secondary">{badge.email}</p>
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-primary">{badge.role}</td>
                       <td className="px-6 py-4">
                         <StatusBadge status={badge.status} />
                       </td>
@@ -723,7 +825,8 @@ export function QrBadgesPage() {
               type="button"
               onClick={() => {
                 const email =
-                  badges.find((b) => b.id === issuedBadgeId)?.email ??
+                  issuedBadgeEmail ||
+                  badges.find((b) => b.id === issuedBadgeId)?.email ||
                   selectedCandidate?.email;
                 if (!email) return;
                 closeIssueFlow();
@@ -740,7 +843,8 @@ export function QrBadgesPage() {
               disabled={exporting}
               onClick={() => {
                 const email =
-                  badges.find((b) => b.id === issuedBadgeId)?.email ??
+                  issuedBadgeEmail ||
+                  badges.find((b) => b.id === issuedBadgeId)?.email ||
                   selectedCandidate?.email;
                 if (!email) return;
                 closeIssueFlow();
@@ -755,6 +859,125 @@ export function QrBadgesPage() {
               <span className="mt-1 text-xs text-text-muted">Download for digital storage</span>
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Setup User & Password modal */}
+      <Modal open={setupOpen} onClose={closeSetupModal} bare className="max-w-lg">
+        <div className="flex items-start justify-between border-b border-border px-6 py-4">
+          <h2 className="font-display text-base font-bold text-text-primary">
+            Setup User &amp; Password
+          </h2>
+          <button
+            type="button"
+            onClick={closeSetupModal}
+            className="text-text-muted hover:text-text-primary"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-5 px-6 py-6">
+          <div>
+            <label
+              htmlFor="setup-full-name"
+              className="mb-1.5 block text-sm font-medium text-text-primary"
+            >
+              Clinician Full Name
+            </label>
+            <Input
+              id="setup-full-name"
+              placeholder="e.g. Dr. Jane Smith"
+              value={setupFullName}
+              onChange={(e) => setSetupFullName(e.target.value)}
+              disabled={setupSubmitting}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="setup-email"
+              className="mb-1.5 block text-sm font-medium text-text-primary"
+            >
+              Email ID
+            </label>
+            <Input
+              id="setup-email"
+              type="email"
+              placeholder="example@clinician.com"
+              value={setupEmail}
+              onChange={(e) => setSetupEmail(e.target.value)}
+              disabled={setupSubmitting}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="setup-password"
+              className="mb-1.5 block text-sm font-medium text-text-primary"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="setup-password"
+                type={showSetupPassword ? "text" : "password"}
+                placeholder="••••••••••"
+                value={setupPassword}
+                onChange={(e) => setSetupPassword(e.target.value)}
+                disabled={setupSubmitting}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSetupPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
+                tabIndex={-1}
+                aria-label={showSetupPassword ? "Hide password" : "Show password"}
+              >
+                {showSetupPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-text-muted">
+              1 uppercase, 1 lowercase, 1 number, 1 special character, minimum 8 characters.
+            </p>
+          </div>
+
+          {setupError && (
+            <p className="rounded-lg border border-danger/30 bg-danger-bg px-4 py-3 text-sm text-danger">
+              {setupError}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-border bg-[#f9f9f9] px-6 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={closeSetupModal}
+            disabled={setupSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => void completeSetupAndIssue()}
+            disabled={setupSubmitting}
+            className="gap-1"
+          >
+            {setupSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create & Issue Badge"
+            )}
+          </Button>
         </div>
       </Modal>
     </>

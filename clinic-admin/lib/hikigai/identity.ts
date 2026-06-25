@@ -14,6 +14,19 @@ export interface IssueQrBadgeResponse {
   qr_code_png_base64: string;
 }
 
+export interface SignupIdentityUserRequest {
+  email: string;
+  password: string;
+  display_name?: string;
+  attributes?: Record<string, string>;
+}
+
+export interface SignupIdentityUserResponse {
+  user_sub: string;
+  email: string;
+  confirmed: boolean;
+}
+
 export interface IdentityUser {
   id: string;
   email: string;
@@ -49,6 +62,56 @@ function extractErrorMessage(payload: unknown, status: number): string {
     record?.detail ??
     `Hikigai identity request failed (${status})`
   );
+}
+
+/** Register a new end user in the Identity pool for this app. */
+export async function signupIdentityUser(
+  params: SignupIdentityUserRequest,
+): Promise<SignupIdentityUserResponse> {
+  const { apiBaseUrl, apiKey, projectId, appId } = getBadgesConfig();
+
+  const url = `${apiBaseUrl}/api/v1/identity/signup`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": apiKey,
+      "X-Project-ID": projectId,
+      "User-Agent": SDK_USER_AGENT,
+    },
+    body: JSON.stringify({
+      app_id: appId,
+      email: params.email.trim(),
+      password: params.password,
+      display_name: params.display_name?.trim() || undefined,
+      ...(params.attributes && Object.keys(params.attributes).length > 0
+        ? { attributes: params.attributes }
+        : {}),
+    }),
+    cache: "no-store",
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new HikigaiApiError(
+      extractErrorMessage(payload, response.status),
+      response.status,
+      payload,
+    );
+  }
+
+  const data = payload as SignupIdentityUserResponse;
+  if (!data?.user_sub || !data?.email) {
+    throw new HikigaiApiError(
+      "Signup response missing user_sub or email",
+      response.status,
+      payload,
+    );
+  }
+
+  return data;
 }
 
 /** Issue (or re-issue) a QR login badge for an end user. */
